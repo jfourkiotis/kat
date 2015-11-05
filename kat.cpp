@@ -12,7 +12,7 @@ using std::cin;
 using std::cerr;
 using std::endl;
 
-using object = boost::variant<long>;
+using object = boost::variant<long, bool>;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,7 +53,20 @@ static object read(std::istream &in)
 	long num{0};
 	char c;
 	cin >> c;
-	if ((isdigit(c) && cin.putback(c)) || 
+
+	if (c == '#') /* read a boolean */
+	{
+		cin >> c;
+		if (c == 't')
+			return true;
+		else if (c == 'f')
+			return false;
+		else 
+		{
+			cerr << "unknown boolean literal" << endl;
+			std::exit(-1);
+		}		
+	} else if ((isdigit(c) && cin.putback(c)) || 
 		(c == '-' && isdigit(cin.peek() && (sign = -1))))
 	{
 		/* read a fixnum */
@@ -81,9 +94,27 @@ static object read(std::istream &in)
 }
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+namespace 
+{
+	class PrintVisitor : public boost::static_visitor<>
+	{
+	public:
+		void operator()(long l) const
+		{
+			cout << l << endl;
+		}
+
+		void operator()(bool b) const
+		{
+			cout << (b ? "#t" : "#f") << endl;
+		}
+
+	};
+}
+
 static void print(const object &obj)
 {
-	cout << obj << endl;
+	boost::apply_visitor(PrintVisitor(), obj);
 }	
 
 ///////////////////////////////////////////////////////////////////////////////
