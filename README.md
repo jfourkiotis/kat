@@ -9,9 +9,9 @@ following are required:
 If all requirements are met, perform the following steps:
 
 
-`mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ../`
+`mkdir build`
+`cd build`
+`cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ../`
 
 You can run kat by typing:
 
