@@ -12,7 +12,7 @@ using std::cin;
 using std::cerr;
 using std::endl;
 
-using object = boost::variant<long, bool, char>;
+using object = boost::variant<long, bool, char, std::string>;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -137,6 +137,26 @@ static object read(std::istream &in)
 			cerr << "number not followed by delimiter" << endl;
 			std::exit(-1);
 		}
+	} else if (c == '"')
+	{
+		string buffer;
+		while (in >> c && c != '"') 
+		{
+			if (c == '\\')
+			{
+				if (in >> c)
+				{
+					if (c == 'n') c = '\n';
+				} else 
+				{
+					cerr << "non-terminated string literal\n";
+					exit(-1);
+				}
+			}
+			buffer.append(1, c);
+		}
+		return buffer;
+
 	} else 
 	{
 		cerr << "bad input. Unexpected '" << c << "'" << endl;
@@ -180,6 +200,30 @@ namespace
 			}
 		}
 
+		void operator()(const std::string &s) const
+		{
+			cout << "\"";
+			for (auto c : s)
+			{
+				switch (c) 
+				{
+					case '\n':
+						cout << "\\n";
+						break;
+					case '\\':
+						cout << "\\\\";
+						break;
+					case '"':
+						cout << "\\\"";
+						break;
+					default:
+						cout << c;
+						break;
+				}
+			}
+			cout << "\"";
+		}
+
 	};
 }
 
@@ -192,7 +236,7 @@ static void print(const object &obj)
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	cout << "Welcome to Kat v0.2. Use ctrl+c to exit.\n";
+	cout << "Welcome to Kat v0.4. Use Ctrl+C to exit.\n";
 
 	cin.unsetf(std::ios_base::skipws);
 	while (true)
