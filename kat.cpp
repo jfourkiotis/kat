@@ -12,7 +12,18 @@ using std::cin;
 using std::cerr;
 using std::endl;
 
-using object = boost::variant<long, bool, char, std::string>;
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+struct Nil {};
+
+using object = boost::variant<
+				long, 
+				bool, 
+				char, 
+				std::string,
+				Nil>;
+
+object nil = Nil();
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -157,6 +168,17 @@ static object read(std::istream &in)
 		}
 		return buffer;
 
+	} else if (c == '(')
+	{
+		eat_whitespace(in);
+		if ((in >> c) && c == ')') 
+		{
+			return nil;
+		} else 
+		{
+			cerr << "bad input. Unexpected '" << c << "'\n";
+			exit(-1);
+		}
 	} else 
 	{
 		cerr << "bad input. Unexpected '" << c << "'" << endl;
@@ -224,6 +246,11 @@ namespace
 			cout << "\"";
 		}
 
+		void operator()(Nil nil) const
+		{
+			cout << "()";	
+		}
+
 	};
 }
 
@@ -236,8 +263,7 @@ static void print(const object &obj)
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	cout << "Welcome to Kat v0.4. Use Ctrl+C to exit.\n";
-
+	cout << "Welcome to Kat v0.5. Use Ctrl+C to exit.\n";
 	cin.unsetf(std::ios_base::skipws);
 	while (true)
 	{
