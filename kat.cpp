@@ -12,7 +12,7 @@ using std::cin;
 using std::cerr;
 using std::endl;
 
-using object = boost::variant<long, bool>;
+using object = boost::variant<long, bool, char>;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -45,6 +45,57 @@ static void eat_whitespace(std::istream &in)
 	}
 }
 
+static void eat_expected_string(std::istream &in, const char *str)
+{
+	char c;
+	while (*str != '\0')
+	{
+		if (!(in >> c) || c != *str)
+		{
+			cerr << "unexpected character '" << c << "'\n";
+			exit(-1);
+		}
+		++str;
+	}
+}
+
+static void peek_expected_delimiter(std::istream &in)
+{
+	if (!is_delimiter(in.peek()))
+	{
+		cerr << "character not followed by delimiter\n";
+		exit(-1);
+	}
+}
+
+static char read_character(std::istream &in)
+{
+	char c;
+	if (!(in >> c))
+	{
+		cerr << "incomplete character literal\n";
+		exit(-1);
+	} else if (c == 's')
+	{	
+		if (in.peek() == 'p')
+		{
+			eat_expected_string(in, "pace");
+			peek_expected_delimiter(in);
+			return ' ';
+		}
+	} else if (c == 'n')
+	{
+		if (in.peek() == 'e')
+		{
+			eat_expected_string(in, "ewline");
+			peek_expected_delimiter(in);
+			return '\n';
+		}
+	}
+	peek_expected_delimiter(in);
+	return c;
+}
+
 static object read(std::istream &in)
 {
 	eat_whitespace(in);
@@ -61,6 +112,8 @@ static object read(std::istream &in)
 			return true;
 		else if (c == 'f')
 			return false;
+		else if (c == '\\')
+			return read_character(in);
 		else 
 		{
 			cerr << "unknown boolean literal" << endl;
@@ -101,12 +154,30 @@ namespace
 	public:
 		void operator()(long l) const
 		{
-			cout << l << endl;
+			cout << l;
 		}
 
 		void operator()(bool b) const
 		{
-			cout << (b ? "#t" : "#f") << endl;
+			cout << (b ? "#t" : "#f");
+		}
+
+		void operator()(char c) const
+		{
+			cout << "#\\";
+			if (c == '\n')
+			{
+				cout << "newline";
+			} else if (c == ' ')
+			{
+				cout << "space";
+			} else if (c == '\t')
+			{
+				cout << "tab";
+			} else 
+			{
+				cout << c;
+			}
 		}
 
 	};
@@ -121,13 +192,14 @@ static void print(const object &obj)
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	cout << "Welcome to Kat. Use ctrl+c to exit.\n";
+	cout << "Welcome to Kat v0.2. Use ctrl+c to exit.\n";
 
 	cin.unsetf(std::ios_base::skipws);
 	while (true)
 	{
 		cout << ">>> ";
 		print(eval(read(cin)));
+		cout << endl;
 	}
 	return 0;
 }
