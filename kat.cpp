@@ -2,6 +2,7 @@
 #include <string>
 #include <cctype>
 #include <cstdlib>
+#include <utility>
 #include <boost/variant.hpp>
 
 using std::isdigit;
@@ -11,17 +12,22 @@ using std::cout;
 using std::cin;
 using std::cerr;
 using std::endl;
+using std::pair;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 struct Nil {};
 
-using object = boost::variant<
+using object = boost::make_recursive_variant<
 				long, 
 				bool, 
 				char, 
 				std::string,
-				Nil>;
+				Nil,
+				pair<boost::recursive_variant_, boost::recursive_variant_>>::type;
+
+#define NIL  4
+#define PAIR 5
 
 object nil = Nil();
 
@@ -107,6 +113,45 @@ static char read_character(std::istream &in)
 	return c;
 }
 
+static object read(std::istream &);
+
+static object read_pair(std::istream &in)
+{
+	eat_whitespace(in);
+
+	char c;
+	in >> c;
+	if (c == ')') return nil;
+	in.putback(c);
+
+	auto car_obj = read(in);
+	eat_whitespace(in);
+	in >> c;
+	if (c == '.')  /* improper list */
+	{
+		c = in.peek();
+		if (!is_delimiter(c))
+		{
+			cerr << "dot not followed by delimiter\n";
+			exit(-1);
+		}
+		auto cdr_obj = read(in);
+		eat_whitespace(in);
+		in >> c;
+		if (c != ')')
+		{
+			cerr << "where was the trailing right paren?\n";
+			exit(-1);
+		}
+		return make_pair(car_obj, cdr_obj);
+	} else /* read list */ 
+	{
+		in.putback(c);
+		auto cdr_obj = read_pair(in);
+		return make_pair(car_obj, cdr_obj);
+	}
+}
+
 static object read(std::istream &in)
 {
 	eat_whitespace(in);
@@ -170,15 +215,7 @@ static object read(std::istream &in)
 
 	} else if (c == '(')
 	{
-		eat_whitespace(in);
-		if ((in >> c) && c == ')') 
-		{
-			return nil;
-		} else 
-		{
-			cerr << "bad input. Unexpected '" << c << "'\n";
-			exit(-1);
-		}
+		return read_pair(in);
 	} else 
 	{
 		cerr << "bad input. Unexpected '" << c << "'" << endl;
@@ -249,6 +286,30 @@ namespace
 		void operator()(Nil nil) const
 		{
 			cout << "()";	
+		}
+
+		void operator()(const pair<object, object> &p) const
+		{
+			cout << "(";
+			write_pair(p);
+			cout << ")";
+		}
+
+	private:
+		void write_pair(const pair<object, object> &p) const
+		{
+			auto &car_obj = p.first;
+			auto &cdr_obj = p.second;
+			boost::apply_visitor(*this, car_obj);
+			if (cdr_obj.which() == PAIR)
+			{
+				cout << " ";
+				write_pair(boost::get<pair<object, object>>(cdr_obj));
+			} else if (cdr_obj.which() != NIL)
+			{
+				cout << " . ";
+				boost::apply_visitor(*this, cdr_obj);
+			}
 		}
 
 	};
