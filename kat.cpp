@@ -2,8 +2,8 @@
 #include <string>
 #include <cctype>
 #include <cstdlib>
-#include <utility>
-#include <boost/variant.hpp>
+#include <unordered_map>
+#include <cassert>
 
 using std::isdigit;
 using std::isspace;
@@ -12,28 +12,218 @@ using std::cout;
 using std::cin;
 using std::cerr;
 using std::endl;
-using std::pair;
+using std::unordered_map;
 
-///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 struct Nil {};
-
-using object = boost::make_recursive_variant<
-				long, 
-				bool, 
-				char, 
-				std::string,
-				Nil,
-				pair<boost::recursive_variant_, boost::recursive_variant_>>::type;
-
-#define NIL  4
-#define PAIR 5
-
-object nil = Nil();
-
+///////////////////////////////////////////////////////////////////////////////
+enum class ValueType
+{
+	FIXNUM,
+	BOOLEAN,
+	CHARACTER,
+	STRING,
+	NIL,
+	CELL,
+	SYMBOL,
+	MAX
+};
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-object eval(const object& in)
+class Value
+{
+public:
+	Value() : type(ValueType::NIL), n(Nil()) {}
+
+	static const Value* NIL;
+	static const Value* FALSE;
+	static const Value* TRUE;
+
+	static const Value* makeString(const string& str);
+	static const Value* makeCell(const Value *first, const Value* second);
+	// makeFixnum & makeChar will be removed. We do not
+	// want that many allocations for integers and chars.
+	// This implementation is silly.
+	static const Value* makeFixnum(long num);
+	static const Value* makeChar(char c);
+	static void print(const Value *v, std::ostream& out);
+	static const Value* car(const Value *v);
+	static const Value* cdr(const Value *v);
+
+private:
+	ValueType type;
+
+	union
+	{
+		long l;
+		bool b;
+		char c;
+		const char *s;
+		Nil n;
+		const Value *cell[2];
+	};
+
+	static const Value* makeNil();
+	static const Value* makeBool(bool condition);
+	static void printCell(const Value *v, std::ostream &out);
+	static unordered_map<string, Value *> interned_strings;
+};
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::makeNil()
+{
+	return new Value(); /* nil by default */
+}
+
+const Value* Value::NIL = makeNil();
+///////////////////////////////////////////////////////////////////////////////
+unordered_map<string, Value *> Value::interned_strings;
+
+const Value* Value::makeString(const string& str)
+{
+	auto iter = interned_strings.find(str);
+	if (iter != interned_strings.end())
+	{
+		return iter->second;
+	} else 
+	{
+		Value *v = new Value();
+		v->type = ValueType::STRING;
+
+		typedef unordered_map<string, Value *> InternedDict;
+		auto r = interned_strings.insert(InternedDict::value_type(str, v));
+		v->s = r.first->first.c_str();
+		return v;
+	}
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::makeBool(bool condition)
+{
+	Value *v = new Value();
+	v->type = ValueType::BOOLEAN;
+	v->b = condition;
+	return v;
+}
+
+const Value* Value::TRUE = Value::makeBool(true);
+const Value* Value::FALSE= Value::makeBool(false);
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::makeCell(const Value *first, const Value *second)
+{
+	Value *v = new Value();
+	v->type = ValueType::CELL;
+	v->cell[0] = first;
+	v->cell[1] = second;
+	return v;
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::makeFixnum(long num)
+{
+	Value *v = new Value();
+	v->type = ValueType::FIXNUM;
+	v->l = num;
+	return v;
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::makeChar(char c)
+{
+	Value *v = new Value();
+	v->type = ValueType::CHARACTER;
+	v->c = c;
+	return v;
+}
+///////////////////////////////////////////////////////////////////////////////
+void Value::printCell(const Value *v, std::ostream &out)
+{
+	print(car(v), out);
+	if (cdr(v)->type == ValueType::CELL)
+	{
+		out << " ";
+		printCell(cdr(v), out);
+	} else if (cdr(v) != Value::NIL)
+	{
+		out << " . ";
+		print(cdr(v), out);
+	}
+}
+///////////////////////////////////////////////////////////////////////////////
+void Value::print(const Value *v, std::ostream& out)
+{
+	switch (v->type)
+	{
+	case ValueType::FIXNUM:
+		out << v->l;
+		break;
+	case ValueType::BOOLEAN:
+		out << (v->b ? "#t" : "#f");
+		break;
+	case ValueType::CHARACTER:
+		out << "#\\";
+		if (v->c == '\n')
+		{
+			out << "newline";
+		} else if (v->c == ' ')
+		{	
+			out << "space";
+		} else if (v->c == '\t')
+		{
+			out << "tab";
+		} else 
+		{
+			out << v->c;
+		}
+		break;
+	case ValueType::STRING:
+		out << "\"";
+		{
+			const char *c = v->s;
+			while (*c)
+			{
+				switch (*c)
+				{
+					case '\n':
+						out << "\\n";
+						break;
+					case '\\':
+						out << "\\\\";
+						break;
+					case '"':
+						out << "\\\"";
+						break;
+					default:
+						out << *c;
+						break;
+				}
+				++c;
+			}
+		}
+		out << "\"";
+		break;
+	case ValueType::NIL:
+		out << "()";
+		break;
+	case ValueType::CELL:
+		out << "(";
+		printCell(v, out);
+		out << ")";
+		break;
+	default:
+		break;
+	}
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::car(const Value *v)
+{
+	assert(v->type == ValueType::CELL);
+	return v->cell[0];
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* Value::cdr(const Value *v)
+{
+	assert(v->type == ValueType::CELL);
+	return v->cell[1];
+}
+///////////////////////////////////////////////////////////////////////////////
+const Value* eval(const Value* in)
 {
 	return in;
 }
@@ -85,7 +275,7 @@ static void peek_expected_delimiter(std::istream &in)
 	}
 }
 
-static char read_character(std::istream &in)
+static const Value* read_character(std::istream &in)
 {
 	char c;
 	if (!(in >> c))
@@ -98,7 +288,7 @@ static char read_character(std::istream &in)
 		{
 			eat_expected_string(in, "pace");
 			peek_expected_delimiter(in);
-			return ' ';
+			return Value::makeChar(' ');
 		}
 	} else if (c == 'n')
 	{
@@ -106,22 +296,30 @@ static char read_character(std::istream &in)
 		{
 			eat_expected_string(in, "ewline");
 			peek_expected_delimiter(in);
-			return '\n';
+			return Value::makeChar('\n');
+		}
+	} else if (c == 't')
+	{
+		if (in.peek() == 'a')
+		{
+			eat_expected_string(in, "ab");
+			peek_expected_delimiter(in);
+			return Value::makeChar('\t');
 		}
 	}
 	peek_expected_delimiter(in);
-	return c;
+	return Value::makeChar(c);
 }
 
-static object read(std::istream &);
+static const Value* read(std::istream &);
 
-static object read_pair(std::istream &in)
+static const Value* read_pair(std::istream &in)
 {
 	eat_whitespace(in);
 
 	char c;
 	in >> c;
-	if (c == ')') return nil;
+	if (c == ')') return Value::NIL;
 	in.putback(c);
 
 	auto car_obj = read(in);
@@ -143,16 +341,16 @@ static object read_pair(std::istream &in)
 			cerr << "where was the trailing right paren?\n";
 			exit(-1);
 		}
-		return make_pair(car_obj, cdr_obj);
+		return Value::makeCell(car_obj, cdr_obj);
 	} else /* read list */ 
 	{
 		in.putback(c);
 		auto cdr_obj = read_pair(in);
-		return make_pair(car_obj, cdr_obj);
+		return Value::makeCell(car_obj, cdr_obj);
 	}
 }
 
-static object read(std::istream &in)
+static const Value* read(std::istream &in)
 {
 	eat_whitespace(in);
 
@@ -165,9 +363,9 @@ static object read(std::istream &in)
 	{
 		cin >> c;
 		if (c == 't')
-			return true;
+			return Value::TRUE;
 		else if (c == 'f')
-			return false;
+			return Value::FALSE;
 		else if (c == '\\')
 			return read_character(in);
 		else 
@@ -187,7 +385,7 @@ static object read(std::istream &in)
 		if (is_delimiter(c))
 		{
 			cin.putback(c);
-			return num;
+			return Value::makeFixnum(num);
 		} else 
 		{
 			cerr << "number not followed by delimiter" << endl;
@@ -211,7 +409,7 @@ static object read(std::istream &in)
 			}
 			buffer.append(1, c);
 		}
-		return buffer;
+		return Value::makeString(buffer);
 
 	} else if (c == '(')
 	{
@@ -226,105 +424,16 @@ static object read(std::istream &in)
 }
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-namespace 
+static void print(const Value *v)
 {
-	class PrintVisitor : public boost::static_visitor<>
-	{
-	public:
-		void operator()(long l) const
-		{
-			cout << l;
-		}
-
-		void operator()(bool b) const
-		{
-			cout << (b ? "#t" : "#f");
-		}
-
-		void operator()(char c) const
-		{
-			cout << "#\\";
-			if (c == '\n')
-			{
-				cout << "newline";
-			} else if (c == ' ')
-			{
-				cout << "space";
-			} else if (c == '\t')
-			{
-				cout << "tab";
-			} else 
-			{
-				cout << c;
-			}
-		}
-
-		void operator()(const std::string &s) const
-		{
-			cout << "\"";
-			for (auto c : s)
-			{
-				switch (c) 
-				{
-					case '\n':
-						cout << "\\n";
-						break;
-					case '\\':
-						cout << "\\\\";
-						break;
-					case '"':
-						cout << "\\\"";
-						break;
-					default:
-						cout << c;
-						break;
-				}
-			}
-			cout << "\"";
-		}
-
-		void operator()(Nil nil) const
-		{
-			cout << "()";	
-		}
-
-		void operator()(const pair<object, object> &p) const
-		{
-			cout << "(";
-			write_pair(p);
-			cout << ")";
-		}
-
-	private:
-		void write_pair(const pair<object, object> &p) const
-		{
-			auto &car_obj = p.first;
-			auto &cdr_obj = p.second;
-			boost::apply_visitor(*this, car_obj);
-			if (cdr_obj.which() == PAIR)
-			{
-				cout << " ";
-				write_pair(boost::get<pair<object, object>>(cdr_obj));
-			} else if (cdr_obj.which() != NIL)
-			{
-				cout << " . ";
-				boost::apply_visitor(*this, cdr_obj);
-			}
-		}
-
-	};
-}
-
-static void print(const object &obj)
-{
-	boost::apply_visitor(PrintVisitor(), obj);
+	Value::print(v, cout);
 }	
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	cout << "Welcome to Kat v0.5. Use Ctrl+C to exit.\n";
+	cout << "Welcome to Kat v0.7. Use Ctrl+C to exit.\n";
 	cin.unsetf(std::ios_base::skipws);
 	while (true)
 	{
