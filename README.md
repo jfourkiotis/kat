@@ -4,7 +4,6 @@
 following are required:
 
 * cmake
-* boost
 
 If all requirements are met, perform the following steps:
 
