@@ -10,6 +10,7 @@ If all requirements are met, perform the following steps:
 	mkdir build
 	cd build
 	cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ../
+	ninja
 
 You can run kat by typing:
 
