@@ -2,6 +2,7 @@
 #include <string>
 #include <cctype>
 #include <cstdlib>
+#include <set>
 #include <unordered_map>
 #include <cassert>
 
@@ -12,6 +13,7 @@ using std::cout;
 using std::cin;
 using std::cerr;
 using std::endl;
+using std::set;
 using std::unordered_map;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -41,6 +43,7 @@ public:
 
 	static const Value* makeString(const string& str);
 	static const Value* makeCell(const Value *first, const Value* second);
+	static const Value* makeSymbol(const string& str);
 	// makeFixnum & makeChar will be removed. We do not
 	// want that many allocations for integers and chars.
 	// This implementation is silly.
@@ -66,7 +69,8 @@ private:
 	static const Value* makeNil();
 	static const Value* makeBool(bool condition);
 	static void printCell(const Value *v, std::ostream &out);
-	static unordered_map<string, Value *> interned_strings;
+	static unordered_map<string, const Value *> interned_strings;
+    static unordered_map<string, const Value *> symbols;
 };
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Value::makeNil()
@@ -76,7 +80,7 @@ const Value* Value::makeNil()
 
 const Value* Value::NIL = makeNil();
 ///////////////////////////////////////////////////////////////////////////////
-unordered_map<string, Value *> Value::interned_strings;
+unordered_map<string, const Value *> Value::interned_strings;
 
 const Value* Value::makeString(const string& str)
 {
@@ -114,6 +118,26 @@ const Value* Value::makeCell(const Value *first, const Value *second)
 	v->cell[0] = first;
 	v->cell[1] = second;
 	return v;
+}
+///////////////////////////////////////////////////////////////////////////////
+unordered_map<string, const Value*> Value::symbols;
+
+const Value* Value::makeSymbol(const string &str)
+{
+    auto iter = symbols.find(str);
+    if (iter != symbols.end())
+    {
+        return iter->second;
+    } else
+    {
+        Value *v = new Value();
+        v->type = ValueType::SYMBOL;
+
+        using SymbolsDict = unordered_map<string, const Value *>;
+        auto r = symbols.insert(SymbolsDict::value_type(str, v));
+        v->s = r.first->first.c_str();
+        return v;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Value::makeFixnum(long num)
@@ -198,6 +222,9 @@ void Value::print(const Value *v, std::ostream& out)
 		}
 		out << "\"";
 		break;
+    case ValueType::SYMBOL:
+        out << v->s;
+        break;
 	case ValueType::NIL:
 		out << "()";
 		break;
@@ -233,6 +260,12 @@ const Value* eval(const Value* in)
 static bool is_delimiter(char c)
 {
 	return isspace(c) || c == '(' || c == ')' || c == '"' || c == ';';
+}
+
+static bool is_initial(char c)
+{
+    static const set<char> allowable { '*', '/', '>', '<', '=', '?', '!'};
+    return std::isalpha(c) || allowable.count(c);
 }
 
 static void eat_whitespace(std::istream &in)
@@ -411,7 +444,24 @@ static const Value* read(std::istream &in)
 		}
 		return Value::makeString(buffer);
 
-	} else if (c == '(')
+	} else if (is_initial(c) || ((c == '+' || c == '-') && is_delimiter(in.peek())))
+    {
+        string symbol;
+        while (is_initial(c) || isdigit(c) || c == '+' || c == '-')
+        {
+            symbol.append(1, c);
+            in >> c;
+        }
+        if (is_delimiter(c))
+        {
+            in.putback(c);
+            return Value::makeSymbol(symbol);
+        } else
+        {
+            cerr << "symbol not followed by delimiter. " <<
+                    "Found '" << c << "'" << endl;
+        }
+    } else if (c == '(')
 	{
 		return read_pair(in);
 	} else 
