@@ -40,6 +40,7 @@ public:
 	static const Value* NIL;
 	static const Value* FALSE;
 	static const Value* TRUE;
+    static const Value* QUOTE;
 
 	static const Value* makeString(const string& str);
 	static const Value* makeCell(const Value *first, const Value* second);
@@ -52,6 +53,14 @@ public:
 	static void print(const Value *v, std::ostream& out);
 	static const Value* car(const Value *v);
 	static const Value* cdr(const Value *v);
+    static const Value* cadr(const Value *v) { return car(cdr(v)); }
+
+    static bool isBoolean(const Value *v) { return v->type == ValueType::BOOLEAN; }
+    static bool isFixnum(const Value *v) { return v->type == ValueType::FIXNUM; }
+    static bool isCharacter(const Value *v) { return v->type == ValueType::CHARACTER; }
+    static bool isString(const Value *v) { return v->type == ValueType::STRING; }
+    static bool isCell(const Value *v) { return v->type == ValueType::CELL; }
+    static bool isSymbol(const Value *v) { return v->type == ValueType::SYMBOL; }
 
 private:
 	ValueType type;
@@ -156,6 +165,9 @@ const Value* Value::makeChar(char c)
 	return v;
 }
 ///////////////////////////////////////////////////////////////////////////////
+const Value * Value::QUOTE = Value::makeSymbol("quote");
+
+///////////////////////////////////////////////////////////////////////////////
 void Value::printCell(const Value *v, std::ostream &out)
 {
 	print(car(v), out);
@@ -250,9 +262,41 @@ const Value* Value::cdr(const Value *v)
 	return v->cell[1];
 }
 ///////////////////////////////////////////////////////////////////////////////
-const Value* eval(const Value* in)
+///////////////////////////////////////////////////////////////////////////////
+static bool is_self_evaluating(const Value *v)
 {
-	return in;
+    return Value::isBoolean(v) || Value::isFixnum(v) || Value::isCharacter(v) || Value::isString(v);
+}
+
+static bool is_tagged_list(const Value *v, const Value *tag)
+{
+    if (Value::isCell(v))
+    {
+        auto car_obj = Value::car(v);
+        return Value::isSymbol(car_obj) && (car_obj == tag);
+    }
+    return false;
+}
+
+static bool is_quoted(const Value *v)
+{
+    return is_tagged_list(v, Value::QUOTE);
+}
+
+const Value* eval(const Value* v)
+{
+    if (is_self_evaluating(v))
+    {
+        return v;
+    } else if (is_quoted(v))
+    {
+        return Value::cadr(v);
+    } else
+    {
+        cerr << "cannot evaluate unknown expression type" << endl;
+        exit(-1);
+    }
+	return v;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -301,7 +345,7 @@ static void eat_expected_string(std::istream &in, const char *str)
 
 static void peek_expected_delimiter(std::istream &in)
 {
-	if (!is_delimiter(in.peek()))
+	if (!is_delimiter(in.peek())) // FIXME: peek returns int
 	{
 		cerr << "character not followed by delimiter\n";
 		exit(-1);
@@ -360,7 +404,7 @@ static const Value* read_pair(std::istream &in)
 	in >> c;
 	if (c == '.')  /* improper list */
 	{
-		c = in.peek();
+		c = in.peek(); // FIXME: peek returns int
 		if (!is_delimiter(c))
 		{
 			cerr << "dot not followed by delimiter\n";
@@ -444,7 +488,7 @@ static const Value* read(std::istream &in)
 		}
 		return Value::makeString(buffer);
 
-	} else if (is_initial(c) || ((c == '+' || c == '-') && is_delimiter(in.peek())))
+	} else if (is_initial(c) || ((c == '+' || c == '-') && is_delimiter(in.peek()))) // FIXME: peek returns int
     {
         string symbol;
         while (is_initial(c) || isdigit(c) || c == '+' || c == '-')
@@ -464,7 +508,10 @@ static const Value* read(std::istream &in)
     } else if (c == '(')
 	{
 		return read_pair(in);
-	} else 
+	} else if (c == '\'')
+    {
+        return Value::makeCell(Value::QUOTE, Value::makeCell(read(in), Value::NIL));
+    } else
 	{
 		cerr << "bad input. Unexpected '" << c << "'" << endl;
 		std::exit(-1);
