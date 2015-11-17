@@ -18,10 +18,6 @@ set(HEADERS
 set(SOURCES
 	kat.cpp)
 
-find_package(Boost)
-if (Boost_FOUND)
-	include_directories(${Boost_INCLUDE_DIRS})
-	add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
-endif()
-
+include_directories(${Boost_INCLUDE_DIRS})
+add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
 
