@@ -17,3 +17,7 @@ You can run kat by typing:
 	./kat
 
 `kat` is a work in progress and under heavy construction.
+
+### changes
+
+* v0.8.1. Refactored current functionality to different classes. No major changes.
