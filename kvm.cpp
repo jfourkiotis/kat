@@ -80,7 +80,6 @@ const Value* Kvm::makeString(const std::string& str)
         Value *v = new Value();
         v->type_ = ValueType::STRING;
 
-        typedef std::unordered_map<std::string, Value *> InternedDict;
         auto r = interned_strings.insert(std::unordered_map<string, const Value *>::value_type(str, v));
         v->s = r.first->first.c_str();
         return v;
@@ -117,7 +116,6 @@ const Value*Kvm::makeSymbol(const std::string &str)
         Value *v = new Value();
         v->type_ = ValueType::SYMBOL;
 
-        using SymbolsDict = std::unordered_map<std::string, const Value *>;
         auto r = symbols.insert(std::unordered_map<string, const Value *>::value_type(str, v));
         v->s = r.first->first.c_str();
         return v;
@@ -232,14 +230,161 @@ void Kvm::print(const Value *v, std::ostream& out)
     }
 }
 
-const Value* Kvm::eval(const Value *v)
+const Value* Kvm::firstFrame(const Value *env)
+{
+    return car(env);
+}
+
+const Value* Kvm::lookupVariableValue(const Value *v, const Value *env)
+{
+    auto cur_env = env;
+    while (cur_env != NIL)
+    {
+        auto frame = firstFrame(env);
+        auto variables = frameVariables(frame);
+        auto values = frameValues(frame);
+        while (variables != NIL)
+        {
+            if (v == car(variables))
+            {
+                return car(values);
+            }
+            variables = cdr(variables);
+            values = cdr(values);
+        }
+        cur_env = enclosingEnv(cur_env);
+    }
+    cerr << "unbound variable\n";
+    exit(-1);
+}
+
+const Value* Kvm::frameVariables(const Value *frame)
+{
+    return car(frame);
+}
+
+const Value* Kvm::frameValues(const Value *frame)
+{
+    return cdr(frame);
+}
+
+void Kvm::addBindingToFrame(const Value *var, const Value *val, const Value *frame)
+{
+    set_car(const_cast<Value *>(frame), makeCell(var, car(frame)));
+    set_cdr(const_cast<Value *>(frame), makeCell(val, cdr(frame)));
+}
+
+const Value* Kvm::makeFrame(const Value *vars, const Value *vals)
+{
+    return makeCell(vars, vals);
+}
+
+const Value* Kvm::enclosingEnv(const Value *env)
+{
+    return cdr(env);
+}
+
+const Value* Kvm::extendEnvironment(const Value *vars, const Value *vals, const Value *base_env)
+{
+    return makeCell(makeFrame(vars, vals), base_env);
+}
+
+const Value* Kvm::setupEnvironment()
+{
+    return extendEnvironment(NIL, NIL, EMPTY_ENV);
+}
+
+const Value* Kvm::assignmentVariable(const Value *v)
+{
+    return car(cdr(v));
+}
+
+const Value* Kvm::assignmentValue(const Value* v)
+{
+    return car(cdr(cdr(v)));
+}
+
+void Kvm::setVariableValue(const Value *var, const Value *val, const Value *env)
+{
+    while (env != NIL)
+    {
+        auto frame = firstFrame(env);
+        auto variables = frameVariables(frame);
+        auto values = frameValues(frame);
+        while (variables != NIL)
+        {
+            if (var == car(variables))
+            {
+                set_car(const_cast<Value *>(values), val);
+                return;
+            }
+            variables = cdr(variables);
+            values = cdr(values);
+        }
+        env = enclosingEnv(env);
+    }
+    cerr << "unbound variable\n";
+    exit(-1);
+}
+
+void Kvm::defineVariable(const Value *var, const Value *val, const Value *env)
+{
+    auto frame = firstFrame(env);
+    auto variables = frameVariables(frame);
+    auto values = frameValues(frame);
+    while (variables != NIL)
+    {
+        if (var == car(variables))
+        {
+            set_car(const_cast<Value *>(values), val);
+            return;
+        }
+        variables = cdr(variables);
+        values = cdr(values);
+    }
+    addBindingToFrame(var, val, frame);
+}
+
+
+const Value* Kvm::evalAssignment(const Value *v, const Value *env)
+{
+    setVariableValue(assignmentVariable(v), eval(assignmentValue(v), env), env);
+    return OK;
+}
+
+const Value* Kvm::definitionVariable(const Value *v)
+{
+    return cadr(v);
+}
+
+const Value* Kvm::definitionValue(const Value *v)
+{
+    return caddr(v);
+}
+
+const Value* Kvm::evalDefinition(const Value *v, const Value *env)
+{
+    defineVariable(definitionVariable(v), eval(definitionValue(v), env), env);
+    return OK;
+}
+
+const Value* Kvm::eval(const Value *v, const Value *env)
 {
     if (isSelfEvaluating(v))
     {
         return v;
+    } else if (isVariable(v))
+    {
+        return lookupVariableValue(v, env);
     } else if (isQuoted(v))
     {
         return cadr(v);
+    } else if (isAssignment(v))
+    {
+        return evalAssignment(v, env);
+    } else if (isDefinition(v))
+    {
+        return evalDefinition(v, env);
     } else
     {
         cerr << "cannot evaluate unknown expression type" << endl;
@@ -265,6 +410,21 @@ bool Kvm::isTagged(const Value *v, const Value *tag)
 bool Kvm::isSelfEvaluating(const Value *v)
 {
     return isBoolean(v) || isFixnum(v) || isCharacter(v) || isString(v);
+}
+
+bool Kvm::isVariable(const Value *v)
+{
+    return isSymbol(v);
+}
+
+bool Kvm::isAssignment(const Value *v)
+{
+    return isTagged(v, SET);
+}
+
+bool Kvm::isDefinition(const Value *v)
+{
+    return isTagged(v, DEFINE);
 }
 
 const Value* Kvm::read(std::istream &in)
@@ -438,7 +598,7 @@ int Kvm::repl(std::istream &in, std::ostream &out)
     while (true)
     {
         out << ">>> ";
-        print(eval(read(in)), out);
+        print(eval(read(in), GLOBAL_ENV), out);
         out << endl;
     }
     return 0;

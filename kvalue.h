@@ -49,6 +49,8 @@ private:
 
     friend const Value* car(const Value *v);
     friend const Value* cdr(const Value *v);
+    friend void set_car(Value *v, const Value *obj);
+    friend void set_cdr(Value *v, const Value *obj);
 
 };
 
@@ -85,5 +87,8 @@ inline bool isSymbol(const Value *v)
 const Value* car(const Value *v);
 const Value* cdr(const Value *v);
 const Value* cadr(const Value *v);
+const Value* caddr(const Value *v);
+void set_car(Value *v, const Value *obj);
+void set_cdr(Value *v, const Value *obj);
 
 #endif //KAT_KVALUE_H
