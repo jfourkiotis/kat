@@ -26,5 +26,20 @@ const Value* cadr(const Value *v)
 {
     return car(cdr(v));
 }
+
+const Value* caddr(const Value *v)
+{
+    return cadr(cdr(v));
+}
+
+void set_car(Value *v, const Value *obj)
+{
+    v->cell[0] = obj;
+}
+
+void set_cdr(Value *v, const Value *obj)
+{
+    v->cell[1] = obj;
+}
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
