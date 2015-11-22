@@ -88,6 +88,8 @@ const Value* car(const Value *v);
 const Value* cdr(const Value *v);
 const Value* cadr(const Value *v);
 const Value* caddr(const Value *v);
+const Value* cadddr(const Value *v);
+const Value* cdddr(const Value *v);
 void set_car(Value *v, const Value *obj);
 void set_cdr(Value *v, const Value *obj);
 

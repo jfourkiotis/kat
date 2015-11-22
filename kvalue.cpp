@@ -32,6 +32,16 @@ const Value* caddr(const Value *v)
     return cadr(cdr(v));
 }
 
+const Value* cadddr(const Value *v)
+{
+    return caddr(cdr(v));
+}
+
+const Value* cdddr(const Value *v)
+{
+    return cdr(cdr(cdr(v)));
+}
+
 void set_car(Value *v, const Value *obj)
 {
     v->cell[0] = obj;
