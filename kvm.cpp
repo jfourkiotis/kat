@@ -370,6 +370,7 @@ const Value* Kvm::evalDefinition(const Value *v, const Value *env)
 
 const Value* Kvm::eval(const Value *v, const Value *env)
 {
+tailcal: // wtf ?
     if (isSelfEvaluating(v))
     {
         return v;
@@ -385,6 +386,10 @@ const Value* Kvm::eval(const Value *v, const Value *env)
     } else if (isDefinition(v))
     {
         return evalDefinition(v, env);
+    } else if (isIf(v))
+    {
+        v = eval(ifPredicate(v), env) == TRUE ? ifConsequent(v) : ifAlternative(v);
+        goto tailcal;
     } else
     {
         cerr << "cannot evaluate unknown expression type" << endl;
@@ -425,6 +430,40 @@ bool Kvm::isAssignment(const Value *v)
 bool Kvm::isDefinition(const Value *v)
 {
     return isTagged(v, DEFINE);
+}
+
+bool Kvm::isIf(const Value *v)
+{
+    /*
+     *       ( if-symbol . +
+     *                     |
+     *                     |
+     *            (if-pred .  +
+     *                        |
+     *                        |
+     *             (if-conseq . + This may be also NIL
+     *                          |
+     *                          |
+     *                (if-alter . NIL)
+     *
+     */
+    return isTagged(v, IF);
+}
+
+const Value* Kvm::ifPredicate(const Value *v)
+{
+    return cadr(v);
+}
+
+const Value* Kvm::ifConsequent(const Value *v)
+{
+    return caddr(v);
+}
+
+const Value* Kvm::ifAlternative(const Value *v)
+{
+    if (cdddr(v) == NIL) return FALSE;
+    return cadddr(v);
 }
 
 const Value* Kvm::read(std::istream &in)

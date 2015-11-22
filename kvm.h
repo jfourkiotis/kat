@@ -22,6 +22,10 @@ private:
     bool isVariable(const Value *v);
     bool isAssignment(const Value *v);
     bool isDefinition(const Value *v);
+    bool isIf(const Value *v);
+    const Value* ifPredicate(const Value *v);
+    const Value* ifConsequent(const Value *v);
+    const Value* ifAlternative(const Value *v);
     void print(const Value *v, std::ostream& out);
     const Value* eval(const Value *v, const Value *env);
     const Value* evalAssignment(const Value *v, const Value *env);
@@ -66,6 +70,7 @@ private:
     const Value* DEFINE= makeSymbol("define");//
     const Value* SET   = makeSymbol("set!");  //
     const Value* OK    = makeSymbol("ok");    //
+    const Value* IF    = makeSymbol("if");    //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();
