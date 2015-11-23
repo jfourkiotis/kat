@@ -146,6 +146,25 @@ const Value*Kvm::makeNil()
     return new Value(); /* nil by default */
 }
 
+const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
+{
+    Value *v = new Value();
+    v->type_ = ValueType::PROC;
+    v->proc = proc;
+    return v;
+}
+
+const Value* Kvm::addProc(Kvm *vm, const Value *args)
+{
+    long result {0};
+    while (args != vm->NIL)
+    {
+        result += car(args)->l;
+        args = cdr(args);
+    }
+    return vm->makeFixnum(result);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void Kvm::printCell(const Value *v, std::ostream &out)
 {
@@ -224,6 +243,9 @@ void Kvm::print(const Value *v, std::ostream& out)
             out << "(";
             printCell(v, out);
             out << ")";
+            break;
+        case ValueType::PROC:
+            out << "#<procedure>";
             break;
         default:
             break;
@@ -327,7 +349,7 @@ void Kvm::setVariableValue(const Value *var, const Value *val, const Value *env)
     exit(-1);
 }
 
-void Kvm::defineVariable(const Value *var, const Value *val, const Value *env)
+const Value * Kvm::defineVariable(const Value *var, const Value *val, const Value *env)
 {
     auto frame = firstFrame(env);
     auto variables = frameVariables(frame);
@@ -337,12 +359,13 @@ void Kvm::defineVariable(const Value *var, const Value *val, const Value *env)
         if (var == car(variables))
         {
             set_car(const_cast<Value *>(values), val);
-            return;
+            return var;
         }
         variables = cdr(variables);
         values = cdr(values);
     }
     addBindingToFrame(var, val, frame);
+    return var;
 }
 
 
@@ -390,6 +413,11 @@ tailcal: // wtf ?
     {
         v = eval(ifPredicate(v), env) == TRUE ? ifConsequent(v) : ifAlternative(v);
         goto tailcal;
+    } else if (isApplication(v))
+    {
+        auto procedure = eval(procOperator(v), env);
+        auto arguments = listOfValues(procOperands(v), env);
+        return procedure->proc(this, arguments);
     } else
     {
         cerr << "cannot evaluate unknown expression type" << endl;
@@ -448,6 +476,30 @@ bool Kvm::isIf(const Value *v)
      *
      */
     return isTagged(v, IF);
+}
+
+bool Kvm::isApplication(const Value *v)
+{
+    return isCell(v);
+}
+
+const Value* Kvm::procOperator(const Value *v)
+{
+    return car(v);
+}
+
+const Value* Kvm::procOperands(const Value *v)
+{
+    return cdr(v);
+}
+
+const Value* Kvm::listOfValues(const Value *v, const Value *env)
+{
+    if (v == NIL) // no operands
+    {
+        return NIL;
+    }
+    return makeCell(eval(car(v), env), listOfValues(cdr(v), env));
 }
 
 const Value* Kvm::ifPredicate(const Value *v)
