@@ -17,6 +17,7 @@ enum class ValueType
     NIL,
     CELL,
     SYMBOL,
+    PROC,
     MAX
 };
 
@@ -35,6 +36,8 @@ public:
 private:
     friend class Kvm;
 
+    typedef const Value *(*PrimProc)(Kvm *vm, const Value *);
+
     ValueType type_;
 
     union
@@ -45,6 +48,7 @@ private:
         const char *s;
         Nil n;
         const Value *cell[2];
+        PrimProc proc;
     };
 
     friend const Value* car(const Value *v);
@@ -82,6 +86,11 @@ inline bool isCell(const Value *v)
 inline bool isSymbol(const Value *v)
 {
     return v->type() == ValueType::SYMBOL;
+}
+
+inline bool isPrimitiveProc(const Value *v)
+{
+    return v->type() == ValueType::PROC;
 }
 
 const Value* car(const Value *v);

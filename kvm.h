@@ -23,9 +23,14 @@ private:
     bool isAssignment(const Value *v);
     bool isDefinition(const Value *v);
     bool isIf(const Value *v);
+    bool isApplication(const Value *v);
+    const Value* procOperator(const Value *v);
+    const Value* procOperands(const Value *v);
+    const Value* listOfValues(const Value *v, const Value *env);
     const Value* ifPredicate(const Value *v);
     const Value* ifConsequent(const Value *v);
     const Value* ifAlternative(const Value *v);
+
     void print(const Value *v, std::ostream& out);
     const Value* eval(const Value *v, const Value *env);
     const Value* evalAssignment(const Value *v, const Value *env);
@@ -35,7 +40,7 @@ private:
     const Value* assignmentVariable(const Value *v);
     const Value* assignmentValue(const Value* v);
     void setVariableValue(const Value *var, const Value *val, const Value *env);
-    void defineVariable(const Value *var, const Value *val, const Value *env);
+    const Value* defineVariable(const Value *var, const Value *val, const Value *env);
     const Value* setupEnvironment();
     const Value* extendEnvironment(const Value *vars, const Value *vals, const Value *base_env);
     const Value* read(std::istream &in);
@@ -59,6 +64,9 @@ private:
     const Value* makeFixnum(long num);
     const Value* makeChar(char c);
     const Value* makeNil();
+    const Value* makeProc(const Value* (*proc)(Kvm *vm, const Value *));
+
+    static const Value* addProc(Kvm *vm, const Value *args);
 
     std::unordered_map<std::string, const Value *> interned_strings;
     std::unordered_map<std::string, const Value *> symbols;
@@ -74,6 +82,8 @@ private:
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();
+
+    const Value* ADD   = defineVariable(makeSymbol("+"), makeProc(addProc), GLOBAL_ENV);
 };
 
 
