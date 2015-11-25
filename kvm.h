@@ -66,7 +66,39 @@ private:
     const Value* makeNil();
     const Value* makeProc(const Value* (*proc)(Kvm *vm, const Value *));
 
+
+    static const Value* isNullP(Kvm *vm, const Value *args);
+    static const Value* isBoolP(Kvm *vm, const Value *args);
+    static const Value* isSymbolP(Kvm *vm, const Value *args);
+    static const Value* isIntegerP(Kvm *vm, const Value *args);
+    static const Value* isCharP(Kvm *vm, const Value *args);
+    static const Value* isStringP(Kvm *vm, const Value *args);
+    static const Value* isPairP(Kvm *vm, const Value *args);
+    static const Value* isProcedureP(Kvm *vm, const Value *args);
+
+    static const Value* charToInteger(Kvm *vm, const Value *args);
+    static const Value* integerToChar(Kvm *vm, const Value *args);
+    static const Value* numberToString(Kvm *vm, const Value *args);
+    static const Value* stringToNumber(Kvm *vm, const Value *args);
+    static const Value* symbolToString(Kvm *vm, const Value *args);
+    static const Value* stringToSymbol(Kvm *vm, const Value *args);
+
+
     static const Value* addProc(Kvm *vm, const Value *args);
+    static const Value* subProc(Kvm *vm, const Value *args);
+    static const Value* mulProc(Kvm *vm, const Value *args);
+    static const Value* quotientProc(Kvm *vm, const Value *args);
+    static const Value* remainderProc(Kvm *vm, const Value *args);
+    static const Value* isNumberEqualProc(Kvm *vm, const Value *args);
+    static const Value* isLessThanProc(Kvm *vm, const Value *args);
+    static const Value* isGreaterThanProc(Kvm *vm, const Value *args);
+    static const Value* consProc(Kvm *vm, const Value *args);
+    static const Value* carProc(Kvm *vm, const Value *args);
+    static const Value* cdrProc(Kvm *vm, const Value *args);
+    static const Value* setCarProc(Kvm *vm, const Value *args);
+    static const Value* setCdrProc(Kvm *vm, const Value *args);
+    static const Value* listProc(Kvm *vm, const Value *args);
+    static const Value* isEqProc(Kvm *vm, const Value *args);
 
     std::unordered_map<std::string, const Value *> interned_strings;
     std::unordered_map<std::string, const Value *> symbols;
@@ -83,7 +115,41 @@ private:
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();
 
-    const Value* ADD   = defineVariable(makeSymbol("+"), makeProc(addProc), GLOBAL_ENV);
+#define ADD_PROC(scheme_name, c_name) \
+    defineVariable(makeSymbol(scheme_name), makeProc(c_name), GLOBAL_ENV)
+
+    const Value* ISNULL     = ADD_PROC("null?", isNullP);
+    const Value* ISBOOLP    = ADD_PROC("boolean?", isBoolP);
+    const Value* ISSYMBOLP  = ADD_PROC("symbol?", isSymbolP);
+    const Value* ISINTEGERP = ADD_PROC("integer?", isIntegerP);
+    const Value* ISCHARP    = ADD_PROC("char?", isCharP);
+    const Value* ISSTRINGP  = ADD_PROC("string?", isStringP);
+    const Value* ISPAIRP    = ADD_PROC("pair?", isPairP);
+    const Value* ISPROCP    = ADD_PROC("procedure?", isProcedureP);
+
+    const Value* CHAR2INT   = ADD_PROC("char->integer", charToInteger);
+    const Value* INT2CHAR   = ADD_PROC("integer->char", integerToChar);
+    const Value* NUM2STR    = ADD_PROC("number->string", numberToString);
+    const Value* STR2NUM    = ADD_PROC("string->number", stringToNumber);
+    const Value* SYM2STR    = ADD_PROC("symbol->string", symbolToString);
+    const Value* STR2SYM    = ADD_PROC("string->symbol", stringToSymbol);
+
+    const Value* ADD        = ADD_PROC("+", addProc);
+    const Value* SUB        = ADD_PROC("-", subProc);
+    const Value* MUL        = ADD_PROC("*", mulProc);
+    const Value* QUOTIENT   = ADD_PROC("quotient", quotientProc);
+    const Value* REMAINDER  = ADD_PROC("remainder", remainderProc);
+    const Value* ISNUMEQUAL = ADD_PROC("=", isNumberEqualProc);
+    const Value* ISLESSTHAN = ADD_PROC("<", isLessThanProc);
+    const Value* ISGREATERTHAN = ADD_PROC(">", isGreaterThanProc);
+    const Value* CONS       = ADD_PROC("cons", consProc);
+    const Value* CAR        = ADD_PROC("car" , carProc);
+    const Value* CDR        = ADD_PROC("cdr" , cdrProc);
+    const Value* SETCAR     = ADD_PROC("set-car!", setCarProc);
+    const Value* SETCDR     = ADD_PROC("set-cdr!", setCdrProc);
+    const Value* LIST       = ADD_PROC("list", listProc);
+    const Value* EQ         = ADD_PROC("eq?", isEqProc);
+
 };
 
 
