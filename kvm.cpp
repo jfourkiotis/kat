@@ -5,6 +5,8 @@
 #include <cassert>
 #include <set>
 #include <unordered_map>
+#include <string>
+#include <cctype>
 #include "kvm.h"
 #include "kvalue.h"
 
@@ -154,6 +156,78 @@ const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
     return v;
 }
 
+const Value* Kvm::isNullP(Kvm *vm, const Value *args)
+{
+    return car(args) == vm->NIL ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::isBoolP(Kvm *vm, const Value *args)
+{
+    return isBoolean(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+
+const Value* Kvm::isSymbolP(Kvm *vm, const Value *args)
+{
+    return isSymbol(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::isIntegerP(Kvm *vm, const Value *args)
+{
+    return isFixnum(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+
+const Value* Kvm::isCharP(Kvm *vm, const Value *args)
+{
+    return isCharacter(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::isStringP(Kvm *vm, const Value *args)
+{
+    return isString(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::isPairP(Kvm *vm, const Value *args)
+{
+    return isCell(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::isProcedureP(Kvm *vm, const Value *args)
+{
+    return isPrimitiveProc(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::charToInteger(Kvm *vm, const Value *args)
+{
+    return vm->makeFixnum(car(args)->c);
+}
+
+const Value* Kvm::integerToChar(Kvm *vm, const Value *args)
+{
+    return vm->makeChar(car(args)->l);
+}
+
+const Value* Kvm::numberToString(Kvm *vm, const Value *args)
+{
+    return vm->makeString(std::to_string(car(args)->l));
+}
+
+const Value* Kvm::stringToNumber(Kvm *vm, const Value *args)
+{
+    return vm->makeFixnum(std::stol(car(args)->s));
+}
+
+const Value* Kvm::symbolToString(Kvm *vm, const Value *args)
+{
+    return vm->makeString(car(args)->s);
+}
+
+const Value* Kvm::stringToSymbol(Kvm *vm, const Value *args)
+{
+    return vm->makeSymbol(car(args)->s);
+}
+
 const Value* Kvm::addProc(Kvm *vm, const Value *args)
 {
     long result {0};
@@ -163,6 +237,146 @@ const Value* Kvm::addProc(Kvm *vm, const Value *args)
         args = cdr(args);
     }
     return vm->makeFixnum(result);
+}
+
+
+const Value* Kvm::subProc(Kvm *vm, const Value *args)
+{
+    long result = car(args)->l;
+    
+    while ((args = cdr(args)) != vm->NIL)
+    {
+        result -= car(args)->l;
+    }
+    
+    return vm->makeFixnum(result);
+}
+
+const Value* Kvm::mulProc(Kvm *vm, const Value *args)
+{
+    long result = 1;
+    
+    while (args != vm->NIL)
+    {
+        result *= car(args)->l;
+        args = cdr(args);
+    }
+    
+    return vm->makeFixnum(result);
+}
+
+
+const Value* Kvm::quotientProc(Kvm *vm, const Value *args)
+{
+    return vm->makeFixnum(car(args)->l / cadr(args)->l);
+}
+
+const Value* Kvm::remainderProc(Kvm *vm, const Value *args)
+{
+    return vm->makeFixnum(car(args)->l % cadr(args)->l);
+}
+
+const Value* Kvm::isNumberEqualProc(Kvm *vm, const Value *args)
+{
+    long value = car(args)->l;
+    while ((args = cdr(args)) != vm->NIL)
+    {
+        if (value != car(args)->l) return vm->FALSE;
+    }
+    return vm->TRUE;
+}
+
+const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
+{
+    long previous = car(args)->l;
+    long next = 0;
+    while ((args = cdr(args)) != vm->NIL)
+    {
+        next = car(args)->l;
+        if (previous < next)
+        {
+            previous = next;
+        } else
+        {
+            return vm->FALSE;
+        }
+    }
+    return vm->TRUE;
+}
+
+const Value* Kvm::isGreaterThanProc(Kvm *vm, const Value *args)
+{
+    long previous = car(args)->l;
+    long next = 0;
+    while ((args = cdr(args)) != vm->NIL)
+    {
+        next = car(args)->l;
+        if (previous > next)
+        {
+            previous = next;
+        } else
+        {
+            return vm->FALSE;
+        }
+    }
+    return vm->TRUE;
+}
+
+const Value* Kvm::consProc(Kvm *vm, const Value *args)
+{
+    return vm->makeCell(car(args), cadr(args));
+}
+
+const Value* Kvm::carProc(Kvm *vm, const Value *args)
+{
+    return car(car(args));
+}
+
+const Value* Kvm::cdrProc(Kvm *vm, const Value *args)
+{
+    return cdr(car(args));
+}
+
+const Value* Kvm::setCarProc(Kvm *vm, const Value *args)
+{
+    set_car(const_cast<Value *>(car(args)), cadr(args));
+    return vm->OK;
+}
+
+const Value* Kvm::setCdrProc(Kvm *vm, const Value *args)
+{
+    set_cdr(const_cast<Value *>(cdr(args)), cadr(args));
+    return vm->OK;
+}
+
+const Value* Kvm::listProc(Kvm *vm, const Value *args)
+{
+    return args;
+}
+
+const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
+{
+    auto obj1 = car(args);
+    auto obj2 = cadr(args);
+
+    if (obj1->type() != obj2->type())
+    {
+        return vm->FALSE;
+    }
+    switch (obj1->type())
+    {
+        case ValueType::FIXNUM:
+            return obj1->l == obj2->l ? vm->TRUE : vm->FALSE;
+            break;
+        case ValueType::CHARACTER:
+            return obj1->c == obj2->c ? vm->TRUE : vm->FALSE;
+            break;
+        case ValueType::STRING:
+            return obj1->s == obj2->s ? vm->TRUE : vm->FALSE; // interned !
+            break;
+        default:
+            return obj1 == obj2 ? vm->TRUE : vm->FALSE;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
