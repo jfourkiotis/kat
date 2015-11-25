@@ -151,9 +151,24 @@ const Value*Kvm::makeNil()
 const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
 {
     Value *v = new Value();
-    v->type_ = ValueType::PROC;
+    v->type_ = ValueType::PRIM_PROC;
     v->proc = proc;
     return v;
+}
+
+const Value* Kvm::makeCompoundProc(const Value* parameters, const Value* body, const Value* env)
+{
+    Value *v = new Value();
+    v->type_ = ValueType::COMP_PROC;
+    v->compound_proc.parameters = parameters;
+    v->compound_proc.body = body;
+    v->compound_proc.env = env;
+    return v;
+}
+
+const Value* Kvm::makeLambda(const Value* parameters, const Value* body)
+{
+    return makeCell(LAMBDA, makeCell(parameters, body));
 }
 
 const Value* Kvm::isNullP(Kvm *vm, const Value *args)
@@ -165,7 +180,6 @@ const Value* Kvm::isBoolP(Kvm *vm, const Value *args)
 {
     return isBoolean(car(args)) ? vm->TRUE : vm->FALSE;
 }
-
 
 const Value* Kvm::isSymbolP(Kvm *vm, const Value *args)
 {
@@ -195,7 +209,8 @@ const Value* Kvm::isPairP(Kvm *vm, const Value *args)
 
 const Value* Kvm::isProcedureP(Kvm *vm, const Value *args)
 {
-    return isPrimitiveProc(car(args)) ? vm->TRUE : vm->FALSE;
+    auto obj = car(args);
+    return isPrimitiveProc(obj) || isCompoundProc(obj) ? vm->TRUE : vm->FALSE;
 }
 
 const Value* Kvm::charToInteger(Kvm *vm, const Value *args)
@@ -367,13 +382,10 @@ const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
     {
         case ValueType::FIXNUM:
             return obj1->l == obj2->l ? vm->TRUE : vm->FALSE;
-            break;
         case ValueType::CHARACTER:
             return obj1->c == obj2->c ? vm->TRUE : vm->FALSE;
-            break;
         case ValueType::STRING:
             return obj1->s == obj2->s ? vm->TRUE : vm->FALSE; // interned !
-            break;
         default:
             return obj1 == obj2 ? vm->TRUE : vm->FALSE;
     }
@@ -458,7 +470,8 @@ void Kvm::print(const Value *v, std::ostream& out)
             printCell(v, out);
             out << ")";
             break;
-        case ValueType::PROC:
+        case ValueType::PRIM_PROC:
+        case ValueType::COMP_PROC:
             out << "#<procedure>";
             break;
         default:
@@ -476,7 +489,7 @@ const Value* Kvm::lookupVariableValue(const Value *v, const Value *env)
     auto cur_env = env;
     while (cur_env != NIL)
     {
-        auto frame = firstFrame(env);
+        auto frame = firstFrame(cur_env);
         auto variables = frameVariables(frame);
         auto values = frameValues(frame);
         while (variables != NIL)
@@ -520,11 +533,20 @@ const Value* Kvm::enclosingEnv(const Value *env)
     return cdr(env);
 }
 
+/*
+ * ENV ->   [ + . BASE_ENV ]
+ *            |
+ *      [vars . vals]
+ */
 const Value* Kvm::extendEnvironment(const Value *vars, const Value *vals, const Value *base_env)
 {
     return makeCell(makeFrame(vars, vals), base_env);
 }
 
+/*
+ *  EMPTY_ENV -> NIL
+ *
+ */
 const Value* Kvm::setupEnvironment()
 {
     return extendEnvironment(NIL, NIL, EMPTY_ENV);
@@ -596,7 +618,13 @@ const Value* Kvm::definitionVariable(const Value *v)
 
 const Value* Kvm::definitionValue(const Value *v)
 {
-    return caddr(v);
+    if (isSymbol(cadr(v)))
+    {
+        return caddr(v);
+    } else
+    {
+        return makeLambda(cdadr(v), cddr(v));
+    }
 }
 
 const Value* Kvm::evalDefinition(const Value *v, const Value *env)
@@ -607,7 +635,7 @@ const Value* Kvm::evalDefinition(const Value *v, const Value *env)
 
 const Value* Kvm::eval(const Value *v, const Value *env)
 {
-tailcal: // wtf ?
+tailcall: // wtf ?
     if (isSelfEvaluating(v))
     {
         return v;
@@ -626,12 +654,37 @@ tailcal: // wtf ?
     } else if (isIf(v))
     {
         v = eval(ifPredicate(v), env) == TRUE ? ifConsequent(v) : ifAlternative(v);
-        goto tailcal;
+        goto tailcall;
+    } else if (isLambda(v))
+    {
+        return makeCompoundProc(lambdaParameters(v), lambdaBody(v), env);
     } else if (isApplication(v))
     {
         auto procedure = eval(procOperator(v), env);
         auto arguments = listOfValues(procOperands(v), env);
-        return procedure->proc(this, arguments);
+        if (isPrimitiveProc(procedure))
+        {
+            return procedure->proc(this, arguments);
+        } else if (isCompoundProc(procedure))
+        {
+            env = extendEnvironment(
+                    procedure->compound_proc.parameters,
+                    arguments,
+                    procedure->compound_proc.env
+            );
+            v = procedure->compound_proc.body;
+            while (cdr(v) != NIL)
+            {
+                eval(car(v), env);
+                v = cdr(v);
+            }
+            v = car(v);
+            goto tailcall;
+        } else
+        {
+            cerr << "unknown procedure type" << endl;
+            exit(-1);
+        }
     } else
     {
         cerr << "cannot evaluate unknown expression type" << endl;
@@ -644,6 +697,13 @@ bool Kvm::isQuoted(const Value *v)
     return isTagged(v, QUOTE);
 }
 
+/*
+ *  TAG:
+ *
+ *  v ->   [ tag . rest ]
+ *
+ *
+ */
 bool Kvm::isTagged(const Value *v, const Value *tag)
 {
     if (isCell(v))
@@ -695,6 +755,28 @@ bool Kvm::isIf(const Value *v)
 bool Kvm::isApplication(const Value *v)
 {
     return isCell(v);
+}
+
+/*
+ *
+ *       [ LAMBDA . +  ]
+ *                  |
+ *         [ PARAMS .  BODY ]
+ *
+ */
+bool Kvm::isLambda(const Value *v)
+{
+    return isTagged(v, LAMBDA);
+}
+
+const Value* Kvm::lambdaParameters(const Value *v)
+{
+    return cadr(v);
+}
+
+const Value* Kvm::lambdaBody(const Value *v)
+{
+    return cdr(cdr(v));
 }
 
 const Value* Kvm::procOperator(const Value *v)
@@ -756,7 +838,7 @@ const Value* Kvm::read(std::istream &in)
             std::exit(-1);
         }
     } else if ((isdigit(c) && cin.putback(c)) ||
-               (c == '-' && isdigit(cin.peek() && (sign = -1))))
+               (c == '-' && isdigit(cin.peek()) && (sign = -1)))
     {
         /* read a fixnum */
         while (cin >> c && isdigit(c))
