@@ -24,6 +24,9 @@ private:
     bool isDefinition(const Value *v);
     bool isIf(const Value *v);
     bool isApplication(const Value *v);
+    bool isLambda(const Value *v);
+    const Value* lambdaParameters(const Value *v);
+    const Value* lambdaBody(const Value *v);
     const Value* procOperator(const Value *v);
     const Value* procOperands(const Value *v);
     const Value* listOfValues(const Value *v, const Value *env);
@@ -65,7 +68,8 @@ private:
     const Value* makeChar(char c);
     const Value* makeNil();
     const Value* makeProc(const Value* (*proc)(Kvm *vm, const Value *));
-
+    const Value* makeCompoundProc(const Value *parameters, const Value *body, const Value *env);
+    const Value* makeLambda(const Value *params, const Value *body);
 
     static const Value* isNullP(Kvm *vm, const Value *args);
     static const Value* isBoolP(Kvm *vm, const Value *args);
@@ -111,6 +115,7 @@ private:
     const Value* SET   = makeSymbol("set!");  //
     const Value* OK    = makeSymbol("ok");    //
     const Value* IF    = makeSymbol("if");    //
+    const Value* LAMBDA= makeSymbol("lambda");//
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();

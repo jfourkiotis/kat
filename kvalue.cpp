@@ -27,9 +27,19 @@ const Value* cadr(const Value *v)
     return car(cdr(v));
 }
 
+const Value* cddr(const Value *v)
+{
+    return cdr(cdr(v));
+}
+
 const Value* caddr(const Value *v)
 {
     return cadr(cdr(v));
+}
+
+const Value* cdadr(const Value *v)
+{
+    return cdr(cadr(v));
 }
 
 const Value* cadddr(const Value *v)

@@ -17,7 +17,8 @@ enum class ValueType
     NIL,
     CELL,
     SYMBOL,
-    PROC,
+    PRIM_PROC,
+    COMP_PROC,
     MAX
 };
 
@@ -49,6 +50,11 @@ private:
         Nil n;
         const Value *cell[2];
         PrimProc proc;
+        struct {
+            const Value *parameters;
+            const Value *body;
+            const Value *env;
+        } compound_proc;
     };
 
     friend const Value* car(const Value *v);
@@ -90,13 +96,20 @@ inline bool isSymbol(const Value *v)
 
 inline bool isPrimitiveProc(const Value *v)
 {
-    return v->type() == ValueType::PROC;
+    return v->type() == ValueType::PRIM_PROC;
+}
+
+inline bool isCompoundProc(const Value *v)
+{
+    return v->type() == ValueType::COMP_PROC;
 }
 
 const Value* car(const Value *v);
 const Value* cdr(const Value *v);
 const Value* cadr(const Value *v);
+const Value* cddr(const Value *v);
 const Value* caddr(const Value *v);
+const Value* cdadr(const Value *v);
 const Value* cadddr(const Value *v);
 const Value* cdddr(const Value *v);
 void set_car(Value *v, const Value *obj);
