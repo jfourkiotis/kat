@@ -89,6 +89,22 @@ const Value* Kvm::makeString(const std::string& str)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::makeBegin(const Value *v)
+{
+    return makeCell(BEGIN, v);
+}
+
+bool Kvm::isBegin(const Value *v)
+{
+    return isTagged(v, BEGIN);
+}
+
+const Value* Kvm::beginActions(const Value *v)
+{
+    return cdr(v);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeBool(bool condition)
 {
     Value *v = new Value();
@@ -658,6 +674,16 @@ tailcall: // wtf ?
     } else if (isLambda(v))
     {
         return makeCompoundProc(lambdaParameters(v), lambdaBody(v), env);
+    } else if (isBegin(v))
+    {
+        v = beginActions(v);
+        while (cdr(v) != NIL)
+        {
+            eval(car(v), env);
+            v = cdr(v);
+        }
+        v = car(v);
+        goto tailcall;
     } else if (isApplication(v))
     {
         auto procedure = eval(procOperator(v), env);
@@ -672,13 +698,7 @@ tailcall: // wtf ?
                     arguments,
                     procedure->compound_proc.env
             );
-            v = procedure->compound_proc.body;
-            while (cdr(v) != NIL)
-            {
-                eval(car(v), env);
-                v = cdr(v);
-            }
-            v = car(v);
+            v = makeBegin(procedure->compound_proc.body);
             goto tailcall;
         } else
         {

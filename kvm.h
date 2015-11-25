@@ -61,6 +61,9 @@ private:
     const Value* makeCell(const Value *first, const Value* second);
     const Value* makeSymbol(const std::string& str);
     const Value* makeBool(bool condition);
+    const Value* makeBegin(const Value *v);
+    bool isBegin(const Value *v);
+    const Value* beginActions(const Value *v);
     // makeFixnum & makeChar will be removed. We do not
     // want that many allocations for integers and chars.
     // This implementation is silly.
@@ -116,6 +119,7 @@ private:
     const Value* OK    = makeSymbol("ok");    //
     const Value* IF    = makeSymbol("if");    //
     const Value* LAMBDA= makeSymbol("lambda");//
+    const Value* BEGIN = makeSymbol("begin"); //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();
