@@ -764,32 +764,22 @@ bool Kvm::isDefinition(const Value *v)
     return isTagged(v, DEFINE);
 }
 
+/*
+ *              ( IF   . +
+ *                     |
+ *                     |
+ *            (if-pred .  +
+ *                        |
+ *                        |
+ *             (if-conseq . + This may be also NIL
+ *                          |
+ *                          |
+ *                (if-alter . NIL)
+ *
+ */
 bool Kvm::isIf(const Value *v)
 {
-    /*
-     *       ( if-symbol . +
-     *                     |
-     *                     |
-     *            (if-pred .  +
-     *                        |
-     *                        |
-     *             (if-conseq . + This may be also NIL
-     *                          |
-     *                          |
-     *                (if-alter . NIL)
-     *
-     */
     return isTagged(v, IF);
-}
-
-bool Kvm::isCond(const Value *v)
-{
-    return isTagged(v, COND);
-}
-
-const Value* Kvm::condToIf(const Value *v)
-{
-    return expandClauses(condClauses(v));
 }
 
 bool Kvm::isApplication(const Value *v)
@@ -807,11 +797,6 @@ bool Kvm::isApplication(const Value *v)
 bool Kvm::isLambda(const Value *v)
 {
     return isTagged(v, LAMBDA);
-}
-
-bool Kvm::isCondElseClause(const Value *clause)
-{
-    return condPredicate(clause) == ELSE;
 }
 
 const Value* Kvm::lambdaParameters(const Value *v)
@@ -858,6 +843,44 @@ const Value* Kvm::ifAlternative(const Value *v)
     if (cdddr(v) == NIL) return FALSE;
     return cadddr(v);
 }
+///////////////////////////////////////////////////////////////////////////////
+/*
+ *     ( COND . CLAUSES )
+ *                 |
+ *              ( clause1 clause2 ... else )  else is optional
+ *
+ *     example clause: ((eq? 1 1) 4)
+ *
+ *     will be transformed to:   (if (eq? 1 1) 4 *)
+ *                                               |
+ *                                               +--------------+
+ *                                                              |
+ *     The rest of the clauses will also be transformed to if forms
+ *
+ *     example:
+ *
+ *     (cond (#f          1)
+ *           ((eq? 'a 'a) 2)
+ *           (else        3))
+ *
+ *     will be transformed to:
+ *
+ *     (if #f
+ *          1
+ *          (if (eq? 'a 'a)
+ *              2
+ *              3))
+ *
+ */
+bool Kvm::isCond(const Value *v)
+{
+    return isTagged(v, COND);
+}
+
+const Value* Kvm::condToIf(const Value *v)
+{
+    return expandClauses(condClauses(v));
+}
 
 const Value* Kvm::expandClauses(const Value *clauses)
 {
@@ -895,6 +918,11 @@ const Value* Kvm::condPredicate(const Value *clause)
     return car(clause);
 }
 
+bool Kvm::isCondElseClause(const Value *clause)
+{
+    return condPredicate(clause) == ELSE;
+}
+
 const Value* Kvm::sequence(const Value *v)
 {
     if (v == NIL)
@@ -914,6 +942,7 @@ const Value* Kvm::condActions(const Value *clause)
     return cdr(clause);
 }
 
+///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::read(std::istream &in)
 {
     eatWhitespace(in);
