@@ -23,8 +23,10 @@ private:
     bool isAssignment(const Value *v);
     bool isDefinition(const Value *v);
     bool isIf(const Value *v);
+    bool isCond(const Value *v);
     bool isApplication(const Value *v);
     bool isLambda(const Value *v);
+    bool isCondElseClause(const Value *clause);
     const Value* lambdaParameters(const Value *v);
     const Value* lambdaBody(const Value *v);
     const Value* procOperator(const Value *v);
@@ -33,6 +35,13 @@ private:
     const Value* ifPredicate(const Value *v);
     const Value* ifConsequent(const Value *v);
     const Value* ifAlternative(const Value *v);
+    const Value* expandClauses(const Value *v);
+    const Value* condClauses(const Value *v);
+    const Value* condPredicate(const Value *clause);
+    const Value* sequence(const Value *v);
+    const Value* condActions(const Value *v);
+    const Value* condToIf(const Value *v);
+
 
     void print(const Value *v, std::ostream& out);
     const Value* eval(const Value *v, const Value *env);
@@ -62,6 +71,7 @@ private:
     const Value* makeSymbol(const std::string& str);
     const Value* makeBool(bool condition);
     const Value* makeBegin(const Value *v);
+    const Value* makeIf(const Value *pred, const Value *conseq, const Value *alternate);
     bool isBegin(const Value *v);
     const Value* beginActions(const Value *v);
     // makeFixnum & makeChar will be removed. We do not
@@ -120,6 +130,8 @@ private:
     const Value* IF    = makeSymbol("if");    //
     const Value* LAMBDA= makeSymbol("lambda");//
     const Value* BEGIN = makeSymbol("begin"); //
+    const Value* COND  = makeSymbol("cond");  //
+    const Value* ELSE  = makeSymbol("else");  //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();

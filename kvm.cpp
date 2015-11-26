@@ -89,6 +89,12 @@ const Value* Kvm::makeString(const std::string& str)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::makeIf(const Value *pred, const Value *conseq, const Value *alternate)
+{
+    return makeCell(IF, makeCell(pred, makeCell(conseq, makeCell(alternate, NIL))));
+}
+
+///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeBegin(const Value *v)
 {
     return makeCell(BEGIN, v);
@@ -671,6 +677,10 @@ tailcall: // wtf ?
     {
         v = eval(ifPredicate(v), env) == TRUE ? ifConsequent(v) : ifAlternative(v);
         goto tailcall;
+    } else if (isCond(v))
+    {
+        v = condToIf(v);
+        goto tailcall;
     } else if (isLambda(v))
     {
         return makeCompoundProc(lambdaParameters(v), lambdaBody(v), env);
@@ -772,6 +782,16 @@ bool Kvm::isIf(const Value *v)
     return isTagged(v, IF);
 }
 
+bool Kvm::isCond(const Value *v)
+{
+    return isTagged(v, COND);
+}
+
+const Value* Kvm::condToIf(const Value *v)
+{
+    return expandClauses(condClauses(v));
+}
+
 bool Kvm::isApplication(const Value *v)
 {
     return isCell(v);
@@ -787,6 +807,11 @@ bool Kvm::isApplication(const Value *v)
 bool Kvm::isLambda(const Value *v)
 {
     return isTagged(v, LAMBDA);
+}
+
+bool Kvm::isCondElseClause(const Value *clause)
+{
+    return condPredicate(clause) == ELSE;
 }
 
 const Value* Kvm::lambdaParameters(const Value *v)
@@ -832,6 +857,61 @@ const Value* Kvm::ifAlternative(const Value *v)
 {
     if (cdddr(v) == NIL) return FALSE;
     return cadddr(v);
+}
+
+const Value* Kvm::expandClauses(const Value *clauses)
+{
+    if (clauses == NIL)
+    {
+        return FALSE;
+    } else
+    {
+        auto first = car(clauses);
+        auto rest  = cdr(clauses);
+        if (isCondElseClause(first))
+        {
+            if (rest == NIL)
+            {
+                 return sequence(condActions(first));
+            } else
+            {
+                cerr << "else clause isn't last" << endl;
+                exit(-1);
+            }
+        } else
+        {
+            return makeIf(condPredicate(first), sequence(condActions(first)), expandClauses(rest));
+        }
+    }
+}
+
+const Value* Kvm::condClauses(const Value *v)
+{
+    return cdr(v);
+}
+
+const Value* Kvm::condPredicate(const Value *clause)
+{
+    return car(clause);
+}
+
+const Value* Kvm::sequence(const Value *v)
+{
+    if (v == NIL)
+    {
+        return v;
+    } else if (cdr(v) == NIL)
+    {
+        return car(v);
+    } else
+    {
+        return makeBegin(v);
+    }
+}
+
+const Value* Kvm::condActions(const Value *clause)
+{
+    return cdr(clause);
 }
 
 const Value* Kvm::read(std::istream &in)
