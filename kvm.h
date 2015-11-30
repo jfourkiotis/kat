@@ -53,6 +53,9 @@ private:
     const Value* bindingsParameters(const Value *v);
     const Value* bindingArgument(const Value *v);
     const Value* bindingParameter(const Value *v);
+    const Value* applyOperator(const Value *arguments);
+    const Value* prepareApplyOperands(const Value *arguments);
+    const Value* applyOperands(const Value *arguments);
 
 
     void print(const Value *v, std::ostream& out);
@@ -131,6 +134,7 @@ private:
     static const Value* setCdrProc(Kvm *vm, const Value *args);
     static const Value* listProc(Kvm *vm, const Value *args);
     static const Value* isEqProc(Kvm *vm, const Value *args);
+    static const Value* applyProc(Kvm *vm, const Value *args);
 
     std::unordered_map<std::string, const Value *> interned_strings;
     std::unordered_map<std::string, const Value *> symbols;
@@ -188,6 +192,7 @@ private:
     const Value* SETCDR     = ADD_PROC("set-cdr!", setCdrProc);
     const Value* LIST       = ADD_PROC("list", listProc);
     const Value* EQ         = ADD_PROC("eq?", isEqProc);
+    const Value* APPLY      = ADD_PROC("apply", applyProc);
 
 };
 
