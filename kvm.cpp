@@ -199,6 +199,58 @@ const Value* Kvm::makeLambda(const Value* parameters, const Value* body)
     return makeCell(LAMBDA, makeCell(parameters, body));
 }
 
+const Value* Kvm::makeEnvironment()
+{
+    auto env = setupEnvironment();
+    populateEnvironment(const_cast<Value *>(env));
+    return env;
+}
+
+#define ADD_PROC(scheme_name, c_name) \
+    defineVariable(makeSymbol(scheme_name), makeProc(c_name), env)
+
+void Kvm::populateEnvironment(Value *env)
+{
+    ADD_PROC("null?", isNullP);
+    ADD_PROC("boolean?", isBoolP);
+    ADD_PROC("symbol?", isSymbolP);
+    ADD_PROC("integer?", isIntegerP);
+    ADD_PROC("char?", isCharP);
+    ADD_PROC("string?", isStringP);
+    ADD_PROC("pair?", isPairP);
+    ADD_PROC("procedure?", isProcedureP);
+
+    ADD_PROC("char->integer", charToInteger);
+    ADD_PROC("integer->char", integerToChar);
+    ADD_PROC("number->string", numberToString);
+    ADD_PROC("string->number", stringToNumber);
+    ADD_PROC("symbol->string", symbolToString);
+    ADD_PROC("string->symbol", stringToSymbol);
+
+    ADD_PROC("+", addProc);
+    ADD_PROC("-", subProc);
+    ADD_PROC("*", mulProc);
+    ADD_PROC("quotient", quotientProc);
+    ADD_PROC("remainder", remainderProc);
+    ADD_PROC("=", isNumberEqualProc);
+    ADD_PROC("<", isLessThanProc);
+    ADD_PROC(">", isGreaterThanProc);
+    ADD_PROC("cons", consProc);
+    ADD_PROC("car" , carProc);
+    ADD_PROC("cdr" , cdrProc);
+    ADD_PROC("set-car!", setCarProc);
+    ADD_PROC("set-cdr!", setCdrProc);
+    ADD_PROC("list", listProc);
+    ADD_PROC("eq?", isEqProc);
+    ADD_PROC("apply", applyProc);
+    ADD_PROC("interaction-environment", interactionEnvironmentProc);
+    ADD_PROC("null-environment", nullEnvironmentProc);
+    ADD_PROC("environment", environmentProc);
+    ADD_PROC("eval", evalProc);
+}
+
+#undef ADD_PROC
+
 const Value* Kvm::isNullP(Kvm *vm, const Value *args)
 {
     return car(args) == vm->NIL ? vm->TRUE : vm->FALSE;
@@ -424,6 +476,40 @@ const Value* Kvm::applyProc(Kvm *vm, const Value *args)
 {
     cerr << "illegal state: The body of the apply primitive procedure should not execute." << endl;
     exit(-1);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::interactionEnvironmentProc(Kvm *vm, const Value *arguments)
+{
+    return vm->GLOBAL_ENV;
+}
+
+const Value* Kvm::nullEnvironmentProc(Kvm *vm, const Value *args)
+{
+    return vm->setupEnvironment();
+}
+
+
+const Value* Kvm::environmentProc(Kvm *vm, const Value *args)
+{
+    return vm->makeEnvironment();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::evalProc(Kvm *vm, const Value *args)
+{
+    cerr << "illegal state: The body of the eval primitive procedure should not execute" << endl;
+    exit(-1);
+}
+
+const Value* Kvm::evalExpression(const Value *arguments)
+{
+    return car(arguments);
+}
+
+const Value* Kvm::evalEnvironment(const Value *arguments)
+{
+    return cadr(arguments);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -748,6 +834,14 @@ tailcall: // wtf ?
     {
         auto procedure = eval(procOperator(v), env);
         auto arguments = listOfValues(procOperands(v), env);
+
+        // handle eval specially for tailcall requirements
+        if (isPrimitiveProc(procedure) && procedure->proc == evalProc)
+        {
+            v = evalExpression(arguments);
+            env = evalEnvironment(arguments);
+            goto tailcall;
+        }
 
         // handle apply specially for tailcall requirement */
         if (isPrimitiveProc(procedure) && procedure->proc == applyProc)
@@ -1280,6 +1374,11 @@ const Value* Kvm::readCharacter(std::istream &in)
     }
     peekExpectedDelimiter(in);
     return makeChar(c);
+}
+
+Kvm::Kvm()
+{
+    populateEnvironment(const_cast<Value *>(GLOBAL_ENV));
 }
 
 int Kvm::repl(std::istream &in, std::ostream &out)

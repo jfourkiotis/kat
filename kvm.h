@@ -12,8 +12,8 @@
 class Value;
 
 class Kvm {
-
 public:
+    Kvm();
     int repl(std::istream &in, std::ostream &out);
 private:
     bool isQuoted(const Value *v);
@@ -101,6 +101,10 @@ private:
     const Value* makeLambda(const Value *params, const Value *body);
     const Value* andTests(const Value *v);
     const Value* orTests(const Value *v);
+    const Value* makeEnvironment();
+    const Value* evalExpression(const Value *v);
+    const Value* evalEnvironment(const Value *arguments);
+    void populateEnvironment(Value *env);
 
     static const Value* isNullP(Kvm *vm, const Value *args);
     static const Value* isBoolP(Kvm *vm, const Value *args);
@@ -135,6 +139,11 @@ private:
     static const Value* listProc(Kvm *vm, const Value *args);
     static const Value* isEqProc(Kvm *vm, const Value *args);
     static const Value* applyProc(Kvm *vm, const Value *args);
+    static const Value* interactionEnvironmentProc(Kvm *vm, const Value *args);
+    static const Value* nullEnvironmentProc(Kvm *vm, const Value *args);
+    static const Value* environmentProc(Kvm *vm, const Value *args);
+    static const Value* evalProc(Kvm *vm, const Value *args);
+
 
     std::unordered_map<std::string, const Value *> interned_strings;
     std::unordered_map<std::string, const Value *> symbols;
@@ -156,43 +165,7 @@ private:
     const Value* OR    = makeSymbol("or");    //
 
     const Value* EMPTY_ENV = NIL;
-    const Value* GLOBAL_ENV= setupEnvironment();
-
-#define ADD_PROC(scheme_name, c_name) \
-    defineVariable(makeSymbol(scheme_name), makeProc(c_name), GLOBAL_ENV)
-
-    const Value* ISNULL     = ADD_PROC("null?", isNullP);
-    const Value* ISBOOLP    = ADD_PROC("boolean?", isBoolP);
-    const Value* ISSYMBOLP  = ADD_PROC("symbol?", isSymbolP);
-    const Value* ISINTEGERP = ADD_PROC("integer?", isIntegerP);
-    const Value* ISCHARP    = ADD_PROC("char?", isCharP);
-    const Value* ISSTRINGP  = ADD_PROC("string?", isStringP);
-    const Value* ISPAIRP    = ADD_PROC("pair?", isPairP);
-    const Value* ISPROCP    = ADD_PROC("procedure?", isProcedureP);
-
-    const Value* CHAR2INT   = ADD_PROC("char->integer", charToInteger);
-    const Value* INT2CHAR   = ADD_PROC("integer->char", integerToChar);
-    const Value* NUM2STR    = ADD_PROC("number->string", numberToString);
-    const Value* STR2NUM    = ADD_PROC("string->number", stringToNumber);
-    const Value* SYM2STR    = ADD_PROC("symbol->string", symbolToString);
-    const Value* STR2SYM    = ADD_PROC("string->symbol", stringToSymbol);
-
-    const Value* ADD        = ADD_PROC("+", addProc);
-    const Value* SUB        = ADD_PROC("-", subProc);
-    const Value* MUL        = ADD_PROC("*", mulProc);
-    const Value* QUOTIENT   = ADD_PROC("quotient", quotientProc);
-    const Value* REMAINDER  = ADD_PROC("remainder", remainderProc);
-    const Value* ISNUMEQUAL = ADD_PROC("=", isNumberEqualProc);
-    const Value* ISLESSTHAN = ADD_PROC("<", isLessThanProc);
-    const Value* ISGREATERTHAN = ADD_PROC(">", isGreaterThanProc);
-    const Value* CONS       = ADD_PROC("cons", consProc);
-    const Value* CAR        = ADD_PROC("car" , carProc);
-    const Value* CDR        = ADD_PROC("cdr" , cdrProc);
-    const Value* SETCAR     = ADD_PROC("set-car!", setCarProc);
-    const Value* SETCDR     = ADD_PROC("set-cdr!", setCdrProc);
-    const Value* LIST       = ADD_PROC("list", listProc);
-    const Value* EQ         = ADD_PROC("eq?", isEqProc);
-    const Value* APPLY      = ADD_PROC("apply", applyProc);
+    const Value* GLOBAL_ENV= makeEnvironment();
 
 };
 
