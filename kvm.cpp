@@ -420,6 +420,13 @@ const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::applyProc(Kvm *vm, const Value *args)
+{
+    cerr << "illegal state: The body of the apply primitive procedure should not execute." << endl;
+    exit(-1);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 void Kvm::printCell(const Value *v, std::ostream &out)
 {
     print(car(v), out);
@@ -741,6 +748,14 @@ tailcall: // wtf ?
     {
         auto procedure = eval(procOperator(v), env);
         auto arguments = listOfValues(procOperands(v), env);
+
+        // handle apply specially for tailcall requirement */
+        if (isPrimitiveProc(procedure) && procedure->proc == applyProc)
+        {
+            procedure = applyOperator(arguments);
+            arguments = applyOperands(arguments);
+        }
+
         if (isPrimitiveProc(procedure))
         {
             return procedure->proc(this, arguments);
@@ -1016,6 +1031,27 @@ const Value* Kvm::bindingsParameters(const Value *bindings)
 const Value* Kvm::letBindings(const Value *v)
 {
     return cadr(v);
+}
+
+const Value* Kvm::applyOperator(const Value *arguments)
+{
+    return car(arguments);
+}
+
+const Value* Kvm::prepareApplyOperands(const Value *arguments)
+{
+    if (cdr(arguments) == NIL)
+    {
+        return car(arguments);
+    } else
+    {
+        return makeCell(car(arguments), prepareApplyOperands(cdr(arguments)));
+    }
+}
+
+const Value* Kvm::applyOperands(const Value *arguments)
+{
+    return prepareApplyOperands(cdr(arguments));
 }
 
 /*
