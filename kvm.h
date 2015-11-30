@@ -27,6 +27,7 @@ private:
     bool isApplication(const Value *v);
     bool isLambda(const Value *v);
     bool isCondElseClause(const Value *clause);
+    bool isLet(const Value *v);
     const Value* lambdaParameters(const Value *v);
     const Value* lambdaBody(const Value *v);
     const Value* procOperator(const Value *v);
@@ -41,6 +42,15 @@ private:
     const Value* sequence(const Value *v);
     const Value* condActions(const Value *v);
     const Value* condToIf(const Value *v);
+    const Value* letToFuncApp(const Value *v);
+    const Value* letBindings(const Value *v);
+    const Value* letBody(const Value *v);
+    const Value* letParameters(const Value *v);
+    const Value* letArguments(const Value *v);
+    const Value* bindingsArguments(const Value *v);
+    const Value* bindingsParameters(const Value *v);
+    const Value* bindingArgument(const Value *v);
+    const Value* bindingParameter(const Value *v);
 
 
     void print(const Value *v, std::ostream& out);
@@ -66,6 +76,7 @@ private:
     void printCell(const Value *v, std::ostream &out);
     const Value* readPair(std::istream &in);
     const Value* readCharacter(std::istream &in);
+    const Value* makeFuncApplication(const Value *op, const Value *operands);
     const Value* makeString(const std::string& str);
     const Value* makeCell(const Value *first, const Value* second);
     const Value* makeSymbol(const std::string& str);
@@ -132,6 +143,7 @@ private:
     const Value* BEGIN = makeSymbol("begin"); //
     const Value* COND  = makeSymbol("cond");  //
     const Value* ELSE  = makeSymbol("else");  //
+    const Value* LET   = makeSymbol("let");   //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();

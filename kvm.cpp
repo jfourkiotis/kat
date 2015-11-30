@@ -71,6 +71,12 @@ namespace
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::makeFuncApplication(const Value *op, const Value *operands)
+{
+    return makeCell(op, operands);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeString(const std::string& str)
 {
     auto iter = interned_strings.find(str);
@@ -681,6 +687,10 @@ tailcall: // wtf ?
     {
         v = condToIf(v);
         goto tailcall;
+    } else if (isLet(v))
+    {
+        v = letToFuncApp(v);
+        goto tailcall;
     } else if (isLambda(v))
     {
         return makeCompoundProc(lambdaParameters(v), lambdaBody(v), env);
@@ -923,6 +933,80 @@ bool Kvm::isCondElseClause(const Value *clause)
     return condPredicate(clause) == ELSE;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/*
+ *  [ LET . + ]
+ *          |
+ *
+ *
+ */
+bool Kvm::isLet(const Value *v)
+{
+    return isTagged(v, LET);
+}
+
+const Value* Kvm::letBody(const Value *v)
+{
+    return cddr(v);
+}
+
+const Value* Kvm::letParameters(const Value *v)
+{
+    return bindingsParameters(letBindings(v));
+}
+
+const Value* Kvm::letArguments(const Value *v)
+{
+    return bindingsArguments(letBindings(v));
+}
+
+const Value* Kvm::bindingArgument(const Value *binding)
+{
+    return cadr(binding);
+}
+
+const Value* Kvm::bindingParameter(const Value *binding)
+{
+    return car(binding);
+}
+
+const Value* Kvm::bindingsArguments(const Value *bindings)
+{
+    return bindings == NIL ? NIL : makeCell(bindingArgument(car(bindings)), bindingsArguments(cdr(bindings)));
+}
+
+const Value* Kvm::bindingsParameters(const Value *bindings)
+{
+    return bindings == NIL ? NIL : makeCell(bindingParameter(car(bindings)), bindingsParameters(cdr(bindings)));
+}
+
+const Value* Kvm::letBindings(const Value *v)
+{
+    return cadr(v);
+}
+
+/*
+ * example:
+ *
+ * (let ((x 1)
+ *       (y 2))
+ *   (+ x y))
+ *
+ * This must be transformed to:
+ *
+ * ((lambda (x y) (+ x y)) 1 2)
+ *
+ * let parameters: (x y)
+ * let arguments : (1 2)
+ * let body      : (+ x y)
+ */
+const Value* Kvm::letToFuncApp(const Value *v)
+{
+    return makeFuncApplication(
+            makeLambda(letParameters(v), letBody(v)), letArguments(v));
+}
+
+///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::sequence(const Value *v)
 {
     if (v == NIL)
