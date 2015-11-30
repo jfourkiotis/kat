@@ -28,6 +28,8 @@ private:
     bool isLambda(const Value *v);
     bool isCondElseClause(const Value *clause);
     bool isLet(const Value *v);
+    bool isAnd(const Value *v);
+    bool isOr(const Value *v);
     const Value* lambdaParameters(const Value *v);
     const Value* lambdaBody(const Value *v);
     const Value* procOperator(const Value *v);
@@ -94,6 +96,8 @@ private:
     const Value* makeProc(const Value* (*proc)(Kvm *vm, const Value *));
     const Value* makeCompoundProc(const Value *parameters, const Value *body, const Value *env);
     const Value* makeLambda(const Value *params, const Value *body);
+    const Value* andTests(const Value *v);
+    const Value* orTests(const Value *v);
 
     static const Value* isNullP(Kvm *vm, const Value *args);
     static const Value* isBoolP(Kvm *vm, const Value *args);
@@ -144,6 +148,8 @@ private:
     const Value* COND  = makeSymbol("cond");  //
     const Value* ELSE  = makeSymbol("else");  //
     const Value* LET   = makeSymbol("let");   //
+    const Value* AND   = makeSymbol("and");   //
+    const Value* OR    = makeSymbol("or");    //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= setupEnvironment();
