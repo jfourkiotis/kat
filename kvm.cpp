@@ -734,7 +734,13 @@ const Value* Kvm::evalAssignment(const Value *v, const Value *env)
 
 const Value* Kvm::definitionVariable(const Value *v)
 {
-    return cadr(v);
+    if (isSymbol(cadr(v)))
+    {
+        return cadr(v);
+    } else
+    {
+        return car(cadr(v));
+    }
 }
 
 const Value* Kvm::definitionValue(const Value *v)
