@@ -691,6 +691,39 @@ tailcall: // wtf ?
     {
         v = letToFuncApp(v);
         goto tailcall;
+    } else if (isAnd(v))
+    {
+        v = andTests(v);
+        if (v == NIL) return TRUE;
+        while (cdr(v) != NIL)
+        {
+            auto result = eval(car(v), env);
+            if (result == NIL)
+            {
+                return result;
+            }
+            v = cdr(v);
+        }
+        v = car(v);
+        goto tailcall;
+    } else if (isOr(v))
+    {
+        v = orTests(v);
+        if (v == NIL)
+        {
+            return NIL;
+        }
+        while (cdr(v) != NIL)
+        {
+            auto result = eval(car(v), env);
+            if (result == TRUE)
+            {
+                return result;
+            }
+            v = cdr(v);
+        }
+        v = car(v);
+        goto tailcall;
     } else if (isLambda(v))
     {
         return makeCompoundProc(lambdaParameters(v), lambdaBody(v), env);
@@ -1006,6 +1039,26 @@ const Value* Kvm::letToFuncApp(const Value *v)
             makeLambda(letParameters(v), letBody(v)), letArguments(v));
 }
 
+///////////////////////////////////////////////////////////////////////////////
+bool Kvm::isAnd(const Value *v)
+{
+    return isTagged(v, AND);
+}
+
+bool Kvm::isOr(const Value *v)
+{
+    return isTagged(v, OR);
+}
+
+const Value* Kvm::andTests(const Value *v)
+{
+    return cdr(v);
+}
+
+const Value* Kvm::orTests(const Value *v)
+{
+    return cdr(v);
+}
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::sequence(const Value *v)
 {
