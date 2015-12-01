@@ -5,6 +5,8 @@
 #ifndef KAT_KVALUE_H
 #define KAT_KVALUE_H
 
+#include <iostream>
+
 ///////////////////////////////////////////////////////////////////////////////
 struct Nil {};
 ///////////////////////////////////////////////////////////////////////////////
@@ -19,6 +21,9 @@ enum class ValueType
     SYMBOL,
     PRIM_PROC,
     COMP_PROC,
+    INPUT_PORT,
+    OUTPUT_PORT,
+    EOF_OBJECT,
     MAX
 };
 
@@ -55,6 +60,8 @@ private:
             const Value *body;
             const Value *env;
         } compound_proc;
+        std::ofstream *output;
+        std::ifstream *input;
     };
 
     friend const Value* car(const Value *v);
@@ -102,6 +109,21 @@ inline bool isPrimitiveProc(const Value *v)
 inline bool isCompoundProc(const Value *v)
 {
     return v->type() == ValueType::COMP_PROC;
+}
+
+inline bool isInputPort(const Value *v)
+{
+    return v->type() == ValueType::INPUT_PORT;
+}
+
+inline bool isOutputPort(const Value *v)
+{
+    return v->type() == ValueType::OUTPUT_PORT;
+}
+
+inline bool isEof(const Value *v)
+{
+    return v->type() == ValueType::EOF_OBJECT;
 }
 
 const Value* car(const Value *v);
