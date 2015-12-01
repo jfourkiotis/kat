@@ -87,7 +87,10 @@ private:
     const Value* makeSymbol(const std::string& str);
     const Value* makeBool(bool condition);
     const Value* makeBegin(const Value *v);
+    const Value* makeEofObject();
     const Value* makeIf(const Value *pred, const Value *conseq, const Value *alternate);
+    const Value* makeInputPort(std::ifstream *input);
+    const Value* makeOutputPort(std::ofstream *output);
     bool isBegin(const Value *v);
     const Value* beginActions(const Value *v);
     // makeFixnum & makeChar will be removed. We do not
@@ -143,6 +146,23 @@ private:
     static const Value* nullEnvironmentProc(Kvm *vm, const Value *args);
     static const Value* environmentProc(Kvm *vm, const Value *args);
     static const Value* evalProc(Kvm *vm, const Value *args);
+    static const Value* loadProc(Kvm *vm, const Value *args);
+    static const Value* openInputPortProc(Kvm *vm, const Value *args);
+    static const Value* closeInputPortProc(Kvm *vm, const Value *args);
+    static const Value* isInputPortProc(Kvm *vm, const Value *args);
+
+    static const Value* openOutputPortProc(Kvm *vm, const Value *args);
+    static const Value* closeOutputPortProc(Kvm *vm, const Value *args);
+    static const Value* isOutputPortProc(Kvm *vm, const Value *args);
+
+    static const Value* isEofObjectProc(Kvm *vm, const Value *args);
+    static const Value* errorProc(Kvm *vm, const Value *args);
+
+    static const Value* readProc(Kvm *vm, const Value *args);
+    static const Value* readCharProc(Kvm *vm, const Value *args);
+    static const Value* peekCharProc(Kvm *vm, const Value *args);
+    static const Value* writeCharProc(Kvm *vm, const Value *args);
+    static const Value* writeProc(Kvm *vm, const Value *args);
 
 
     std::unordered_map<std::string, const Value *> interned_strings;
@@ -163,6 +183,7 @@ private:
     const Value* LET   = makeSymbol("let");   //
     const Value* AND   = makeSymbol("and");   //
     const Value* OR    = makeSymbol("or");    //
+    const Value* EOFOBJ= makeEofObject();     //
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= makeEnvironment();

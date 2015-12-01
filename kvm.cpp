@@ -6,11 +6,11 @@
 #include <set>
 #include <unordered_map>
 #include <string>
+#include <fstream>
 #include <cctype>
 #include "kvm.h"
 #include "kvalue.h"
 
-using std::cin;
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -34,14 +34,14 @@ namespace
         char c;
         while(in >> c) // will read from stdin
         {
-            // cin has its skipws unset earlier, in main
+            // in has its skipws unset earlier, in main
             if (isspace(c)) continue;
             else if (c == ';')
             {
-                while(cin >> c && c != '\n'); // read line
+                while(in >> c && c != '\n'); // read line
                 continue;
             }
-            cin.putback(c);
+            in.putback(c);
             break;
         }
     }
@@ -132,6 +132,29 @@ const Value* Kvm::makeCell(const Value *first, const Value *second)
     v->type_ = ValueType::CELL;
     v->cell[0] = first;
     v->cell[1] = second;
+    return v;
+}
+
+const Value* Kvm::makeEofObject()
+{
+    Value *v = new Value();
+    v->type_ = ValueType::EOF_OBJECT;
+    return v;
+}
+
+const Value* Kvm::makeInputPort(std::ifstream *input)
+{
+    Value *v = new Value();
+    v->type_ = ValueType::INPUT_PORT;
+    v->input = input;
+    return v;
+}
+
+const Value* Kvm::makeOutputPort(std::ofstream *output)
+{
+    Value *v = new Value();
+    v->type_ = ValueType::OUTPUT_PORT;
+    v->output= output;
     return v;
 }
 
@@ -247,6 +270,24 @@ void Kvm::populateEnvironment(Value *env)
     ADD_PROC("null-environment", nullEnvironmentProc);
     ADD_PROC("environment", environmentProc);
     ADD_PROC("eval", evalProc);
+
+    ADD_PROC("load", loadProc);
+    ADD_PROC("open-input-port", openInputPortProc);
+    ADD_PROC("close-input-port", closeInputPortProc);
+    ADD_PROC("input-port?", isInputPortProc);
+
+    ADD_PROC("open-output-port", openOutputPortProc);
+    ADD_PROC("close-output-port", closeOutputPortProc);
+    ADD_PROC("output-port?", isOutputPortProc);
+
+    ADD_PROC("read", readProc);
+    ADD_PROC("read-char", readCharProc);
+    ADD_PROC("peek-char", peekCharProc);
+    ADD_PROC("write", writeProc);
+    ADD_PROC("write-char", writeCharProc);
+
+    ADD_PROC("eof-object?", isEofObjectProc);
+    ADD_PROC("error", errorProc);
 }
 
 #undef ADD_PROC
@@ -489,7 +530,6 @@ const Value* Kvm::nullEnvironmentProc(Kvm *vm, const Value *args)
     return vm->setupEnvironment();
 }
 
-
 const Value* Kvm::environmentProc(Kvm *vm, const Value *args)
 {
     return vm->makeEnvironment();
@@ -510,6 +550,141 @@ const Value* Kvm::evalExpression(const Value *arguments)
 const Value* Kvm::evalEnvironment(const Value *arguments)
 {
     return cadr(arguments);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+const Value* Kvm::loadProc(Kvm *vm, const Value *args)
+{
+    auto filename = car(args)->s;
+
+    std::ifstream in(filename);
+
+    if (!in)
+    {
+        cerr << "could not load file \"" << filename << "\"" << endl;
+        exit(-1);
+    }
+
+    const Value *v = nullptr;
+    const Value *result = nullptr;
+
+    in.unsetf(std::ios_base::skipws);
+    while ((v = vm->read(in)) && in)
+    {
+        result = vm->eval(v, vm->GLOBAL_ENV);
+    }
+    return result;
+}
+
+const Value* Kvm::openInputPortProc(Kvm *vm, const Value *args)
+{
+    auto filename = car(args)->s;
+    std::ifstream *in = new std::ifstream(filename);
+    if (!*in)
+    {
+        cerr << "could not open file \"" << filename << "\"" << endl;
+        exit(-1);
+    }
+    return vm->makeInputPort(in);
+}
+
+const Value* Kvm::closeInputPortProc(Kvm *vm, const Value *args)
+{
+    auto stream = car(args)->input;
+    delete stream;
+
+    const_cast<Value *>(args)->input = nullptr;
+    return vm->OK;
+}
+
+const Value* Kvm::isInputPortProc(Kvm *vm, const Value *args)
+{
+    return isInputPort(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::openOutputPortProc(Kvm *vm, const Value *args)
+{
+    auto filename = car(args)->s;
+    std::ofstream *out = new std::ofstream(filename);
+    if (!*out)
+    {
+        cerr << "could not open file \"" << filename << "\"" << endl;
+    }
+    return vm->makeOutputPort(out);
+}
+
+const Value* Kvm::closeOutputPortProc(Kvm *vm, const Value *args)
+{
+    auto stream = car(args)->output;
+    delete stream;
+    const_cast<Value *>(args)->output = nullptr;
+    return vm->OK;
+}
+
+const Value* Kvm::isOutputPortProc(Kvm *vm, const Value *args)
+{
+    return isOutputPort(car(args)) ? vm->TRUE: vm->FALSE;
+}
+
+const Value* Kvm::isEofObjectProc(Kvm *vm, const Value *args)
+{
+    return isEof(car(args)) ? vm->TRUE : vm->FALSE;
+}
+
+const Value* Kvm::errorProc(Kvm *vm, const Value *args)
+{
+    while (args != vm->NIL)
+    {
+        vm->print(car(args), cerr);
+        cerr << " ";
+        args = cdr(args);
+    }
+    cerr << "\nexiting...\n";
+    exit(-1);
+}
+
+const Value* Kvm::readProc(Kvm *vm, const Value *args)
+{
+    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+    auto result = vm->read(stream);
+    return result == nullptr ? vm->EOFOBJ : result;
+}
+
+const Value* Kvm::readCharProc(Kvm *vm, const Value *args)
+{
+    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+
+    char c;
+    stream >> c;
+    return stream ? vm->EOFOBJ : vm->makeChar(c);
+}
+
+const Value* Kvm::peekCharProc(Kvm *vm, const Value *args)
+{
+    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+    auto result = stream.peek();
+    return stream ? vm->makeChar(result) : vm->EOFOBJ;
+}
+
+const Value* Kvm::writeCharProc(Kvm *vm, const Value *args)
+{
+    auto character = car(args);
+    args = cdr(args);
+    std::ostream &stream = args == vm->NIL ? cout : *car(args)->output;
+    stream << character->c;
+    stream.flush();
+    return vm->OK;
+}
+
+const Value* Kvm::writeProc(Kvm *vm, const Value *args)
+{
+    auto v = car(args);
+    args = cdr(args);
+
+    std::ostream &stream = args == vm->NIL ? std::cout : *car(args)->output;
+    vm->print(v, stream);
+    stream.flush();
+    return vm->OK;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -592,10 +767,22 @@ void Kvm::print(const Value *v, std::ostream& out)
             out << ")";
             break;
         case ValueType::PRIM_PROC:
+            out << "#<primitive-procedure";
+            break;
         case ValueType::COMP_PROC:
-            out << "#<procedure>";
+            out << "#<compound-procedure>";
+            break;
+        case ValueType::INPUT_PORT:
+            out << "#<input-port>";
+            break;
+        case ValueType::OUTPUT_PORT:
+            out << "#<output-port>";
+            break;
+        case ValueType::EOF_OBJECT:
+            out << "#<eof>";
             break;
         default:
+            cerr << "cannot write unknown type" << endl;
             break;
     }
 }
@@ -624,7 +811,7 @@ const Value* Kvm::lookupVariableValue(const Value *v, const Value *env)
         }
         cur_env = enclosingEnv(cur_env);
     }
-    cerr << "unbound variable\n";
+    cerr << "unbound variable, " << v->s << endl;
     exit(-1);
 }
 
@@ -702,7 +889,7 @@ void Kvm::setVariableValue(const Value *var, const Value *val, const Value *env)
         }
         env = enclosingEnv(env);
     }
-    cerr << "unbound variable\n";
+    cerr << "unbound variable, " << var->s << endl;
     exit(-1);
 }
 
@@ -797,7 +984,7 @@ tailcall: // wtf ?
         while (cdr(v) != NIL)
         {
             auto result = eval(car(v), env);
-            if (result == NIL)
+            if (result == FALSE)
             {
                 return result;
             }
@@ -1223,11 +1410,15 @@ const Value* Kvm::read(std::istream &in)
     int sign{1};
     long num{0};
     char c;
-    cin >> c;
+    in >> c;
 
+    if (!in)
+    {
+        return nullptr;
+    }
     if (c == '#') /* read a boolean */
     {
-        cin >> c;
+        in >> c;
         if (c == 't')
             return TRUE;
         else if (c == 'f')
@@ -1239,18 +1430,18 @@ const Value* Kvm::read(std::istream &in)
             cerr << "unknown boolean literal" << endl;
             std::exit(-1);
         }
-    } else if ((isdigit(c) && cin.putback(c)) ||
-               (c == '-' && isdigit(cin.peek()) && (sign = -1)))
+    } else if ((isdigit(c) && in.putback(c)) ||
+               (c == '-' && isdigit(in.peek()) && (sign = -1)))
     {
         /* read a fixnum */
-        while (cin >> c && isdigit(c))
+        while (in >> c && isdigit(c))
         {
             num = num * 10 + (c - '0');
         }
         num *= sign;
         if (isDelimiter(c))
         {
-            cin.putback(c);
+            in.putback(c);
             return makeFixnum(num);
         } else
         {
@@ -1392,8 +1583,14 @@ int Kvm::repl(std::istream &in, std::ostream &out)
     while (true)
     {
         out << ">>> ";
-        print(eval(read(in), GLOBAL_ENV), out);
+        auto v = read(in);
+        if (!v)
+        {
+            break;
+        }
+        print(eval(v, GLOBAL_ENV), out);
         out << endl;
     }
+    out << "Goodbye" << endl;
     return 0;
 }
