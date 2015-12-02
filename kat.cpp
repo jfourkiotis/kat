@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	std::cout << "Welcome to Kat v0.20. Use Ctrl+C to exit.\n";
+    std::cout << "Welcome to Kat v0.21. Use Ctrl+C to exit.\n";
     std::cin.unsetf(std::ios_base::skipws);
 
     Kvm vm;
