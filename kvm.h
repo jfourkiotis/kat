@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "kgc.h"
+#include "kvalue.h"
 
 class Value;
 
@@ -170,25 +171,27 @@ private:
     std::unordered_map<std::string, const Value *> interned_strings;
     std::unordered_map<std::string, const Value *> symbols;
 
-    const Value* NIL   = makeNil();           // pretty dangerous initializations here.
-    const Value* FALSE = makeBool(false);     // NIL, FALSE, TRUE & QUOTE will might
-    const Value* TRUE  = makeBool(true);      // symbols and/or other members.
-    const Value* QUOTE = makeSymbol("quote"); //
-    const Value* DEFINE= makeSymbol("define");//
-    const Value* SET   = makeSymbol("set!");  //
-    const Value* OK    = makeSymbol("ok");    //
-    const Value* IF    = makeSymbol("if");    //
-    const Value* LAMBDA= makeSymbol("lambda");//
-    const Value* BEGIN = makeSymbol("begin"); //
-    const Value* COND  = makeSymbol("cond");  //
-    const Value* ELSE  = makeSymbol("else");  //
-    const Value* LET   = makeSymbol("let");   //
-    const Value* AND   = makeSymbol("and");   //
-    const Value* OR    = makeSymbol("or");    //
-    const Value* EOFOBJ= makeEofObject();     //
-
-    const Value* EMPTY_ENV = NIL;
-    const Value* GLOBAL_ENV= makeEnvironment();
+    const Value* NIL   ;
+    const Value* FALSE ;
+    const Value* TRUE  ;
+    const Value* QUOTE ;
+    const Value* DEFINE;
+    const Value* SET   ;
+    const Value* OK    ;
+    const Value* IF    ;
+    const Value* LAMBDA;
+    const Value* BEGIN ;
+    const Value* COND  ;
+    const Value* ELSE  ;
+    const Value* LET   ;
+    const Value* AND   ;
+    const Value* OR    ;
+    const Value* EOFOBJ;
+    const Value* EMPTY_ENV ;
+    const Value* GLOBAL_ENV;
+    
+    void initialize();
+    void addEnvProc(Value *env, const char *schemeName, Value::PrimProc proc);
     
     Kgc gc_;
 
