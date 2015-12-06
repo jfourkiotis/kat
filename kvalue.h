@@ -35,6 +35,7 @@ class Value
 {
 public:
     Value() : type_(ValueType::NIL), n(Nil()) {}
+    ~Value();
 
 
     ValueType type() const { return type_; }
