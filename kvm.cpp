@@ -88,7 +88,7 @@ const Value* Kvm::makeString(const std::string& str)
         Value *v = gc_.allocValue();
         v->type_ = ValueType::STRING;
 
-        auto r = interned_strings.insert(std::unordered_map<string, const Value *>::value_type(str, v));
+        auto r = interned_strings.insert({str, v});
         v->s = r.first->first.c_str();
         return v;
     }
@@ -169,7 +169,7 @@ const Value*Kvm::makeSymbol(const std::string &str)
         Value *v = gc_.allocValue();
         v->type_ = ValueType::SYMBOL;
 
-        auto r = symbols.insert(std::unordered_map<string, const Value *>::value_type(str, v));
+        auto r = symbols.insert({str, v});
         v->s = r.first->first.c_str();
         return v;
     }
@@ -224,73 +224,88 @@ const Value* Kvm::makeLambda(const Value* parameters, const Value* body)
 
 const Value* Kvm::makeEnvironment()
 {
-    auto env = setupEnvironment();
+    const Value *env = nullptr;
+    gc_.pushLocalStackRoot(&env);
+    
+    env = setupEnvironment();
     populateEnvironment(const_cast<Value *>(env));
+    
+    gc_.popLocalStackRoot();
     return env;
 }
 
-#define ADD_PROC(scheme_name, c_name) \
-    defineVariable(makeSymbol(scheme_name), makeProc(c_name), env)
+void Kvm::addEnvProc(Value *env, const char *schemeName, Value::PrimProc proc)
+{
+    const Value *result1 = nullptr;
+    const Value *result2 = nullptr;
+    gc_.pushLocalStackRoot(&result1);
+    gc_.pushLocalStackRoot(&result2);
+    
+    result2 = makeProc(proc);
+    result1 = makeSymbol(schemeName);
+    defineVariable(result1, result2, env);
+    
+    gc_.popLocalStackRoot();
+    gc_.popLocalStackRoot();
+}
 
 void Kvm::populateEnvironment(Value *env)
 {
-    ADD_PROC("null?", isNullP);
-    ADD_PROC("boolean?", isBoolP);
-    ADD_PROC("symbol?", isSymbolP);
-    ADD_PROC("integer?", isIntegerP);
-    ADD_PROC("char?", isCharP);
-    ADD_PROC("string?", isStringP);
-    ADD_PROC("pair?", isPairP);
-    ADD_PROC("procedure?", isProcedureP);
+    addEnvProc(env, "null?", isNullP);
+    addEnvProc(env, "boolean?", isBoolP);
+    addEnvProc(env, "symbol?", isSymbolP);
+    addEnvProc(env, "integer?", isIntegerP);
+    addEnvProc(env, "char?", isCharP);
+    addEnvProc(env, "string?", isStringP);
+    addEnvProc(env, "pair?", isPairP);
+    addEnvProc(env, "procedure?", isProcedureP);
 
-    ADD_PROC("char->integer", charToInteger);
-    ADD_PROC("integer->char", integerToChar);
-    ADD_PROC("number->string", numberToString);
-    ADD_PROC("string->number", stringToNumber);
-    ADD_PROC("symbol->string", symbolToString);
-    ADD_PROC("string->symbol", stringToSymbol);
+    addEnvProc(env, "char->integer", charToInteger);
+    addEnvProc(env, "integer->char", integerToChar);
+    addEnvProc(env, "number->string", numberToString);
+    addEnvProc(env, "string->number", stringToNumber);
+    addEnvProc(env, "symbol->string", symbolToString);
+    addEnvProc(env, "string->symbol", stringToSymbol);
 
-    ADD_PROC("+", addProc);
-    ADD_PROC("-", subProc);
-    ADD_PROC("*", mulProc);
-    ADD_PROC("quotient", quotientProc);
-    ADD_PROC("remainder", remainderProc);
-    ADD_PROC("=", isNumberEqualProc);
-    ADD_PROC("<", isLessThanProc);
-    ADD_PROC(">", isGreaterThanProc);
-    ADD_PROC("cons", consProc);
-    ADD_PROC("car" , carProc);
-    ADD_PROC("cdr" , cdrProc);
-    ADD_PROC("set-car!", setCarProc);
-    ADD_PROC("set-cdr!", setCdrProc);
-    ADD_PROC("list", listProc);
-    ADD_PROC("eq?", isEqProc);
-    ADD_PROC("apply", applyProc);
-    ADD_PROC("interaction-environment", interactionEnvironmentProc);
-    ADD_PROC("null-environment", nullEnvironmentProc);
-    ADD_PROC("environment", environmentProc);
-    ADD_PROC("eval", evalProc);
+    addEnvProc(env, "+", addProc);
+    addEnvProc(env, "-", subProc);
+    addEnvProc(env, "*", mulProc);
+    addEnvProc(env, "quotient", quotientProc);
+    addEnvProc(env, "remainder", remainderProc);
+    addEnvProc(env, "=", isNumberEqualProc);
+    addEnvProc(env, "<", isLessThanProc);
+    addEnvProc(env, ">", isGreaterThanProc);
+    addEnvProc(env, "cons", consProc);
+    addEnvProc(env, "car" , carProc);
+    addEnvProc(env, "cdr" , cdrProc);
+    addEnvProc(env, "set-car!", setCarProc);
+    addEnvProc(env, "set-cdr!", setCdrProc);
+    addEnvProc(env, "list", listProc);
+    addEnvProc(env, "eq?", isEqProc);
+    addEnvProc(env, "apply", applyProc);
+    addEnvProc(env, "interaction-environment", interactionEnvironmentProc);
+    addEnvProc(env, "null-environment", nullEnvironmentProc);
+    addEnvProc(env, "environment", environmentProc);
+    addEnvProc(env, "eval", evalProc);
 
-    ADD_PROC("load", loadProc);
-    ADD_PROC("open-input-port", openInputPortProc);
-    ADD_PROC("close-input-port", closeInputPortProc);
-    ADD_PROC("input-port?", isInputPortProc);
+    addEnvProc(env, "load", loadProc);
+    addEnvProc(env, "open-input-port", openInputPortProc);
+    addEnvProc(env, "close-input-port", closeInputPortProc);
+    addEnvProc(env, "input-port?", isInputPortProc);
 
-    ADD_PROC("open-output-port", openOutputPortProc);
-    ADD_PROC("close-output-port", closeOutputPortProc);
-    ADD_PROC("output-port?", isOutputPortProc);
+    addEnvProc(env, "open-output-port", openOutputPortProc);
+    addEnvProc(env, "close-output-port", closeOutputPortProc);
+    addEnvProc(env, "output-port?", isOutputPortProc);
 
-    ADD_PROC("read", readProc);
-    ADD_PROC("read-char", readCharProc);
-    ADD_PROC("peek-char", peekCharProc);
-    ADD_PROC("write", writeProc);
-    ADD_PROC("write-char", writeCharProc);
+    addEnvProc(env, "read", readProc);
+    addEnvProc(env, "read-char", readCharProc);
+    addEnvProc(env, "peek-char", peekCharProc);
+    addEnvProc(env, "write", writeProc);
+    addEnvProc(env, "write-char", writeCharProc);
 
-    ADD_PROC("eof-object?", isEofObjectProc);
-    ADD_PROC("error", errorProc);
+    addEnvProc(env, "eof-object?", isEofObjectProc);
+    addEnvProc(env, "error", errorProc);
 }
-
-#undef ADD_PROC
 
 const Value* Kvm::isNullP(Kvm *vm, const Value *args)
 {
@@ -827,8 +842,16 @@ const Value* Kvm::frameValues(const Value *frame)
 
 void Kvm::addBindingToFrame(const Value *var, const Value *val, const Value *frame)
 {
-    set_car(const_cast<Value *>(frame), makeCell(var, car(frame)));
-    set_cdr(const_cast<Value *>(frame), makeCell(val, cdr(frame)));
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+    
+    result = makeCell(var, car(frame));
+    set_car(const_cast<Value *>(frame), result);
+    
+    result = makeCell(val, cdr(frame));
+    set_cdr(const_cast<Value *>(frame), result);
+    
+    gc_.popLocalStackRoot();
 }
 
 const Value* Kvm::makeFrame(const Value *vars, const Value *vals)
@@ -848,7 +871,14 @@ const Value* Kvm::enclosingEnv(const Value *env)
  */
 const Value* Kvm::extendEnvironment(const Value *vars, const Value *vals, const Value *base_env)
 {
-    return makeCell(makeFrame(vars, vals), base_env);
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+    
+    result = makeFrame(vars, vals);
+    result = makeCell(result, base_env);
+    
+    gc_.popLocalStackRoot();
+    return result;
 }
 
 /*
@@ -1573,9 +1603,66 @@ const Value* Kvm::readCharacter(std::istream &in)
     return makeChar(c);
 }
 
+#define GC_PROTECT(member) gc_.pushStackRoot(member);
+
+void Kvm::initialize()
+{
+    NIL   = makeNil();
+    GC_PROTECT(NIL);
+    
+    FALSE = makeBool(false);
+    GC_PROTECT(FALSE);
+    
+    TRUE  = makeBool(true);
+    GC_PROTECT(TRUE);
+    
+    QUOTE = makeSymbol("quote");
+    GC_PROTECT(QUOTE);
+    
+    DEFINE= makeSymbol("define");
+    GC_PROTECT(DEFINE);
+    
+    SET   = makeSymbol("set!");
+    GC_PROTECT(SET);
+    
+    OK    = makeSymbol("ok");
+    GC_PROTECT(OK);
+    
+    IF    = makeSymbol("if");
+    GC_PROTECT(IF);
+    
+    LAMBDA= makeSymbol("lambda");
+    GC_PROTECT(LAMBDA);
+    
+    BEGIN = makeSymbol("begin");
+    GC_PROTECT(BEGIN);
+    
+    COND  = makeSymbol("cond");
+    GC_PROTECT(COND);
+    
+    ELSE  = makeSymbol("else");
+    GC_PROTECT(ELSE);
+    
+    LET   = makeSymbol("let");
+    GC_PROTECT(LET);
+    
+    AND   = makeSymbol("and");
+    GC_PROTECT(AND);
+    
+    OR    = makeSymbol("or");
+    GC_PROTECT(OR);
+    
+    EOFOBJ= makeEofObject();
+    GC_PROTECT(EOFOBJ);
+    
+    EMPTY_ENV = NIL; // already protected
+    GLOBAL_ENV= makeEnvironment();
+    GC_PROTECT(GLOBAL_ENV);
+}
+
 Kvm::Kvm()
 {
-    populateEnvironment(const_cast<Value *>(GLOBAL_ENV));
+    initialize();
 }
 
 int Kvm::repl(std::istream &in, std::ostream &out)

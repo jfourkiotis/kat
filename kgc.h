@@ -1,6 +1,8 @@
 #ifndef KAT_GC_H_INCLUDED
 #define KAT_GC_H_INCLUDED
 
+#include <vector>
+
 class Value;
 
 #define INITIAL_GC_THRESHOLD 1
@@ -13,8 +15,10 @@ public:
     
     ~Kgc();
     
+    void pushStackRoot(const Value *v) { stackRoots_.push_back(v); }
+    void pushLocalStackRoot(const Value **v) { localStackRoots_.push_back(v); }
+    void popLocalStackRoot() { localStackRoots_.pop_back(); }
     void collect();
-    
     Value* allocValue();
     
 private:
@@ -27,6 +31,9 @@ private:
     unsigned int numObjects_;
     unsigned int maxObjects_;
     const Value* firstObject_ = nullptr;
+    
+    std::vector<const Value  *> stackRoots_;
+    std::vector<const Value **> localStackRoots_;
     
 };
 

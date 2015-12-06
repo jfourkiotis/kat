@@ -1,5 +1,6 @@
 #include "kgc.h"
 #include "kvalue.h"
+#include <cassert>
 
 Value* Kgc::allocValue()
 {
@@ -18,6 +19,8 @@ Value* Kgc::allocValue()
 
 Kgc::~Kgc()
 {
+    assert(localStackRoots_.empty());
+    stackRoots_.clear();
     collect();
 }
 
@@ -52,7 +55,7 @@ void Kgc::mark(const Value *v)
 void Kgc::sweep()
 {
     const Value **object = &firstObject_;
-    while (!(*object)->marked_)
+    while (*object)
     {
         if (!(*object)->marked_)
         {
@@ -69,7 +72,18 @@ void Kgc::sweep()
 
 void Kgc::markAll()
 {
+    for (auto v : localStackRoots_)
+    {
+        if (*v)
+        {
+            mark(*v);
+        }
+    }
     
+    for (auto v : stackRoots_)
+    {
+        mark(v);
+    }
 }
 
 void Kgc::dealloc(const Value *v)
