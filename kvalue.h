@@ -30,6 +30,7 @@ enum class ValueType
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 class Kvm;
+class Kgc;
 
 class Value
 {
@@ -42,10 +43,13 @@ public:
 
 private:
     friend class Kvm;
+    friend class Kgc;
 
     typedef const Value *(*PrimProc)(Kvm *vm, const Value *);
 
     ValueType type_;
+    mutable unsigned int marked_ = 0;
+    const Value* next_ = nullptr;
 
     union
     {
