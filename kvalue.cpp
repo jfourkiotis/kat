@@ -3,11 +3,25 @@
 //
 
 #include <cassert>
+#include <fstream>
 #include "kvalue.h"
 #include "kvm.h"
 
 using std::string;
 using std::unordered_map;
+
+Value::~Value()
+{
+    if (type() == ValueType::INPUT_PORT)
+    {
+        delete input;
+        input = nullptr;
+    } else if (type() == ValueType::OUTPUT_PORT)
+    {
+        delete output;
+        output = nullptr;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value* car(const Value *v)
