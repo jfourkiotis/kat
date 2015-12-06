@@ -14,12 +14,14 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 set(HEADERS
-	kvalue.h
-    kvm.h)
+    kvalue.h
+    kvm.h
+    kgc.h)
 set(SOURCES
     kat.cpp
     kvalue.cpp
-    kvm.cpp)
+    kvm.cpp
+    kgc.cpp)
 
 include_directories(${Boost_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})

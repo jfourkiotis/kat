@@ -85,7 +85,7 @@ const Value* Kvm::makeString(const std::string& str)
         return iter->second;
     } else
     {
-        Value *v = new Value();
+        Value *v = gc_.allocValue();
         v->type_ = ValueType::STRING;
 
         auto r = interned_strings.insert(std::unordered_map<string, const Value *>::value_type(str, v));
@@ -119,7 +119,7 @@ const Value* Kvm::beginActions(const Value *v)
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeBool(bool condition)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::BOOLEAN;
     v->b = condition;
     return v;
@@ -128,7 +128,7 @@ const Value* Kvm::makeBool(bool condition)
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeCell(const Value *first, const Value *second)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::CELL;
     v->cell[0] = first;
     v->cell[1] = second;
@@ -137,14 +137,14 @@ const Value* Kvm::makeCell(const Value *first, const Value *second)
 
 const Value* Kvm::makeEofObject()
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::EOF_OBJECT;
     return v;
 }
 
 const Value* Kvm::makeInputPort(std::ifstream *input)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::INPUT_PORT;
     v->input = input;
     return v;
@@ -152,7 +152,7 @@ const Value* Kvm::makeInputPort(std::ifstream *input)
 
 const Value* Kvm::makeOutputPort(std::ofstream *output)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::OUTPUT_PORT;
     v->output= output;
     return v;
@@ -166,7 +166,7 @@ const Value*Kvm::makeSymbol(const std::string &str)
         return iter->second;
     } else
     {
-        Value *v = new Value();
+        Value *v = gc_.allocValue();
         v->type_ = ValueType::SYMBOL;
 
         auto r = symbols.insert(std::unordered_map<string, const Value *>::value_type(str, v));
@@ -178,7 +178,7 @@ const Value*Kvm::makeSymbol(const std::string &str)
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeFixnum(long num)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::FIXNUM;
     v->l = num;
     return v;
@@ -187,7 +187,7 @@ const Value *Kvm::makeFixnum(long num)
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeChar(char c)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::CHARACTER;
     v->c = c;
     return v;
@@ -196,12 +196,12 @@ const Value *Kvm::makeChar(char c)
 ///////////////////////////////////////////////////////////////////////////////
 const Value*Kvm::makeNil()
 {
-    return new Value(); /* nil by default */
+    return gc_.allocValue(); /* nil by default */
 }
 
 const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::PRIM_PROC;
     v->proc = proc;
     return v;
@@ -209,7 +209,7 @@ const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
 
 const Value* Kvm::makeCompoundProc(const Value* parameters, const Value* body, const Value* env)
 {
-    Value *v = new Value();
+    Value *v = gc_.allocValue();
     v->type_ = ValueType::COMP_PROC;
     v->compound_proc.parameters = parameters;
     v->compound_proc.body = body;

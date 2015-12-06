@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <iostream>
 
+#include "kgc.h"
+
 class Value;
 
 class Kvm {
@@ -187,6 +189,8 @@ private:
 
     const Value* EMPTY_ENV = NIL;
     const Value* GLOBAL_ENV= makeEnvironment();
+    
+    Kgc gc_;
 
 };
 
