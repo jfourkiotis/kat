@@ -973,7 +973,14 @@ const Value* Kvm::definitionValue(const Value *v)
 
 const Value* Kvm::evalDefinition(const Value *v, const Value *env)
 {
-    defineVariable(definitionVariable(v), eval(definitionValue(v), env), env);
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+
+    result = definitionValue(v);
+    result = eval(result, env);
+    defineVariable(definitionVariable(v), result, env);
+
+    gc_.popLocalStackRoot();
     return OK;
 }
 
