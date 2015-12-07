@@ -1520,7 +1520,15 @@ const Value* Kvm::read(std::istream &in)
         return readPair(in);
     } else if (c == '\'')
     {
-        return makeCell(QUOTE, makeCell(read(in), NIL));
+        const Value *result = nullptr;
+        gc_.pushLocalStackRoot(&result);
+
+        result = read(in);
+        result = makeCell(result, NIL);
+        result = makeCell(QUOTE, result);
+
+        gc_.popLocalStackRoot();
+        return result;
     } else
     {
         cerr << "bad input. Unexpected '" << c << "'" << endl;
@@ -1539,7 +1547,12 @@ const Value* Kvm::readPair(std::istream &in)
     if (c == ')') return NIL;
     in.putback(c);
 
-    auto car_obj = read(in);
+    const Value *car_obj = nullptr;
+    const Value *cdr_obj = nullptr;
+    gc_.pushLocalStackRoot(&car_obj);
+    gc_.pushLocalStackRoot(&cdr_obj);
+
+    car_obj = read(in);
     eatWhitespace(in);
     in >> c;
     if (c == '.')  /* improper list */
@@ -1550,7 +1563,7 @@ const Value* Kvm::readPair(std::istream &in)
             cerr << "dot not followed by delimiter\n";
             exit(-1);
         }
-        auto cdr_obj = read(in);
+        cdr_obj = read(in);
         eatWhitespace(in);
         in >> c;
         if (c != ')')
@@ -1558,12 +1571,18 @@ const Value* Kvm::readPair(std::istream &in)
             cerr << "where was the trailing right paren?\n";
             exit(-1);
         }
-        return makeCell(car_obj, cdr_obj);
+        auto result = makeCell(car_obj, cdr_obj);
+        gc_.popLocalStackRoot();
+        gc_.popLocalStackRoot();
+        return result;
     } else /* read list */
     {
         in.putback(c);
-        auto cdr_obj = readPair(in);
-        return makeCell(car_obj, cdr_obj);
+        cdr_obj = readPair(in);
+        auto result = makeCell(car_obj, cdr_obj);
+        gc_.popLocalStackRoot();
+        gc_.popLocalStackRoot();
+        return result;
     }
 }
 
