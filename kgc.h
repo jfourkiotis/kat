@@ -8,6 +8,8 @@ class Value;
 
 #define INITIAL_GC_THRESHOLD 1
 
+class GcGuard;
+
 class Kgc
 {
 public:
@@ -37,7 +39,32 @@ private:
     
     std::vector<const Value  *> stackRoots_;
     std::vector<const Value **> localStackRoots_;
-    
+
+    friend class GcGuard;
+};
+
+class GcGuard
+{
+public:
+    explicit GcGuard(Kgc &gc) : gc_(gc) {}
+
+    ~GcGuard()
+    {
+        while (times_)
+        {
+            gc_.popLocalStackRoot();
+            --times_;
+        }
+    }
+
+    void pushLocalStackRoot(const Value **local)
+    {
+        gc_.pushLocalStackRoot(local);
+        ++times_;
+    }
+private:
+    Kgc &gc_;
+    long times_ = 0;
 };
 
 #endif /* KAT_GC_H_INCLUDED */
