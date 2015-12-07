@@ -1285,7 +1285,18 @@ const Value* Kvm::expandClauses(const Value *clauses)
             }
         } else
         {
-            return makeIf(condPredicate(first), sequence(condActions(first)), expandClauses(rest));
+            const Value *result1 = nullptr;
+            const Value *result2 = nullptr;
+            gc_.pushLocalStackRoot(&result1);
+            gc_.pushLocalStackRoot(&result2);
+
+            result1 = sequence(condActions(first));
+            result2 = expandClauses(rest);
+            result1 = makeIf(condPredicate(first), result1, result2);
+
+            gc_.popLocalStackRoot();
+            gc_.popLocalStackRoot();
+            return result1;
         }
     }
 }
