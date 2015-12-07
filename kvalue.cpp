@@ -10,30 +10,19 @@
 using std::string;
 using std::unordered_map;
 
-Value::~Value()
-{
-    if (type() == ValueType::INPUT_PORT)
-    {
-        delete input;
-        input = nullptr;
-    } else if (type() == ValueType::OUTPUT_PORT)
-    {
-        delete output;
-        output = nullptr;
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 const Value* car(const Value *v)
 {
     assert(v->type() == ValueType::CELL);
-    return v->cell[0];
+    const Cell *c = static_cast<const Cell *>(v);
+    return c->head_;
 }
 ///////////////////////////////////////////////////////////////////////////////
 const Value* cdr(const Value *v)
 {
     assert(v->type() == ValueType::CELL);
-    return v->cell[1];
+    const Cell *c = static_cast<const Cell *>(v);
+    return c->tail_;
 }
 
 const Value* cadr(const Value *v)
@@ -68,12 +57,16 @@ const Value* cdddr(const Value *v)
 
 void set_car(Value *v, const Value *obj)
 {
-    v->cell[0] = obj;
+    assert(v->type() == ValueType::CELL);
+    Cell *c = static_cast<Cell *>(v);
+    c->head_ = obj;
 }
 
 void set_cdr(Value *v, const Value *obj)
 {
-    v->cell[1] = obj;
+    assert(v->type() == ValueType::CELL);
+    Cell *c = static_cast<Cell *>(v);
+    c->tail_ = obj;
 }
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////

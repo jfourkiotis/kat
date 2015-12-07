@@ -85,12 +85,10 @@ const Value* Kvm::makeString(const std::string& str)
         return iter->second;
     } else
     {
-        Value *v = gc_.allocValue();
-        v->type_ = ValueType::STRING;
-
-        auto r = interned_strings.insert({str, v});
-        v->s = r.first->first.c_str();
-        return v;
+        String *s = static_cast<String *>(gc_.allocValue(ValueType::STRING));
+        auto r = interned_strings.insert({str, s});
+        s->value_ = r.first->first.c_str();
+        return s;
     }
 }
 
@@ -119,43 +117,39 @@ const Value* Kvm::beginActions(const Value *v)
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeBool(bool condition)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::BOOLEAN;
-    v->b = condition;
-    return v;
+    Boolean *b = static_cast<Boolean *>(gc_.allocValue(ValueType::BOOLEAN));
+    b->value_ = condition;
+    return b;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeCell(const Value *first, const Value *second)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::CELL;
-    v->cell[0] = first;
-    v->cell[1] = second;
-    return v;
+    Cell *c = static_cast<Cell *>(gc_.allocValue(ValueType::CELL));
+    c->head_ = first;
+    c->tail_ = second;
+    return c;
 }
 
 const Value* Kvm::makeEofObject()
 {
-    Value *v = gc_.allocValue();
+    Value *v = gc_.allocValue(ValueType::EOF_OBJECT);
     v->type_ = ValueType::EOF_OBJECT;
     return v;
 }
 
-const Value* Kvm::makeInputPort(std::ifstream *input)
+const Value* Kvm::makeInputPort(std::unique_ptr<std::ifstream> input)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::INPUT_PORT;
-    v->input = input;
-    return v;
+    InputPort *ip = static_cast<InputPort *>(gc_.allocValue(ValueType::INPUT_PORT));
+    ip->input = std::move(input);
+    return ip;
 }
 
-const Value* Kvm::makeOutputPort(std::ofstream *output)
+const Value* Kvm::makeOutputPort(std::unique_ptr<std::ofstream> output)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::OUTPUT_PORT;
-    v->output= output;
-    return v;
+    OutputPort *op = static_cast<OutputPort *>(gc_.allocValue(ValueType::OUTPUT_PORT));
+    op->output = std::move(output);
+    return op;
 }
 
 const Value*Kvm::makeSymbol(const std::string &str)
@@ -166,55 +160,50 @@ const Value*Kvm::makeSymbol(const std::string &str)
         return iter->second;
     } else
     {
-        Value *v = gc_.allocValue();
-        v->type_ = ValueType::SYMBOL;
-
-        auto r = symbols.insert({str, v});
-        v->s = r.first->first.c_str();
-        return v;
+        Symbol *s = static_cast<Symbol *>(gc_.allocValue(ValueType::SYMBOL));
+        auto r = symbols.insert({str, s});
+        s->value_ = r.first->first.c_str();
+        return s;
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeFixnum(long num)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::FIXNUM;
-    v->l = num;
-    return v;
+    Fixnum *f = static_cast<Fixnum *>(gc_.allocValue(ValueType::FIXNUM));
+    f->value_ = num;
+    return f;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeChar(char c)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::CHARACTER;
-    v->c = c;
+    Character *v = static_cast<Character *>(gc_.allocValue(ValueType::CHARACTER));
+    v->value_ = c;
     return v;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value*Kvm::makeNil()
 {
-    return gc_.allocValue(); /* nil by default */
+    return gc_.allocValue(ValueType::NIL); /* nil by default */
 }
 
 const Value* Kvm::makeProc(const Value *(proc)(Kvm *vm, const Value *args))
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::PRIM_PROC;
-    v->proc = proc;
+    PrimitiveProc *v = static_cast<PrimitiveProc *>(gc_.allocValue(ValueType::PRIM_PROC));
+    v->func_ = proc;
     return v;
 }
 
 const Value* Kvm::makeCompoundProc(const Value* parameters, const Value* body, const Value* env)
 {
-    Value *v = gc_.allocValue();
-    v->type_ = ValueType::COMP_PROC;
-    v->compound_proc.parameters = parameters;
-    v->compound_proc.body = body;
-    v->compound_proc.env = env;
-    return v;
+    CompoundProc *cp = static_cast<CompoundProc *>(gc_.allocValue(ValueType::COMP_PROC));
+
+    cp->parameters_ = parameters;
+    cp->body_ = body;
+    cp->env_ = env;
+    return cp;
 }
 
 const Value* Kvm::makeLambda(const Value* parameters, const Value* body)
@@ -234,7 +223,7 @@ const Value* Kvm::makeEnvironment()
     return env;
 }
 
-void Kvm::addEnvProc(Value *env, const char *schemeName, Value::PrimProc proc)
+void Kvm::addEnvProc(Value *env, const char *schemeName, const Value * (*proc)(Kvm *vm, const Value *))
 {
     const Value *result1 = nullptr;
     const Value *result2 = nullptr;
@@ -351,40 +340,49 @@ const Value* Kvm::isProcedureP(Kvm *vm, const Value *args)
 
 const Value* Kvm::charToInteger(Kvm *vm, const Value *args)
 {
-    return vm->makeFixnum(car(args)->c);
+    const Character *v = static_cast<const Character *>(car(args));
+    return vm->makeFixnum(v->value_);
 }
 
 const Value* Kvm::integerToChar(Kvm *vm, const Value *args)
 {
-    return vm->makeChar(car(args)->l);
+    const Fixnum *n = static_cast<const Fixnum *>(car(args));
+    return vm->makeChar(n->value_);
 }
 
 const Value* Kvm::numberToString(Kvm *vm, const Value *args)
 {
-    return vm->makeString(std::to_string(car(args)->l));
+    const Fixnum *n = static_cast<const Fixnum *>(car(args));
+    return vm->makeString(std::to_string(n->value_));
 }
 
 const Value* Kvm::stringToNumber(Kvm *vm, const Value *args)
 {
-    return vm->makeFixnum(std::stol(car(args)->s));
+    const String *s = static_cast<const String *>(car(args));
+    return vm->makeFixnum(std::stol(s->value_));
 }
 
 const Value* Kvm::symbolToString(Kvm *vm, const Value *args)
 {
-    return vm->makeString(car(args)->s);
+    const Symbol *s = static_cast<const Symbol *>(car(args));
+    return vm->makeString(s->value_);
 }
 
 const Value* Kvm::stringToSymbol(Kvm *vm, const Value *args)
 {
-    return vm->makeSymbol(car(args)->s);
+    const String *s = static_cast<const String *>(car(args));
+    return vm->makeSymbol(s->value_);
 }
 
 const Value* Kvm::addProc(Kvm *vm, const Value *args)
 {
     long result {0};
+    
+    const Fixnum *num = nullptr;
     while (args != vm->NIL)
     {
-        result += car(args)->l;
+        num = static_cast<const Fixnum *>(car(args));
+        result += num->value_;
         args = cdr(args);
     }
     return vm->makeFixnum(result);
@@ -393,11 +391,13 @@ const Value* Kvm::addProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::subProc(Kvm *vm, const Value *args)
 {
-    long result = car(args)->l;
+    const Fixnum *num = static_cast<const Fixnum *>(car(args));
+    long result = num->value_;
     
     while ((args = cdr(args)) != vm->NIL)
     {
-        result -= car(args)->l;
+        num = static_cast<const Fixnum *>(car(args));
+        result -= num->value_;
     }
     
     return vm->makeFixnum(result);
@@ -407,9 +407,11 @@ const Value* Kvm::mulProc(Kvm *vm, const Value *args)
 {
     long result = 1;
     
+    const Fixnum *num = nullptr;
     while (args != vm->NIL)
     {
-        result *= car(args)->l;
+        num = static_cast<const Fixnum *>(car(args));
+        result *= num->value_;
         args = cdr(args);
     }
     
@@ -419,31 +421,41 @@ const Value* Kvm::mulProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::quotientProc(Kvm *vm, const Value *args)
 {
-    return vm->makeFixnum(car(args)->l / cadr(args)->l);
+    const Fixnum *n1 = static_cast<const Fixnum *>(car(args));
+    const Fixnum *n2 = static_cast<const Fixnum *>(cadr(args));
+    return vm->makeFixnum(n1->value_ / n2->value_);
 }
 
 const Value* Kvm::remainderProc(Kvm *vm, const Value *args)
 {
-    return vm->makeFixnum(car(args)->l % cadr(args)->l);
+    const Fixnum *n1 = static_cast<const Fixnum *>(car(args));
+    const Fixnum *n2 = static_cast<const Fixnum *>(cadr(args));
+    return vm->makeFixnum(n1->value_ % n2->value_);
 }
 
 const Value* Kvm::isNumberEqualProc(Kvm *vm, const Value *args)
 {
-    long value = car(args)->l;
+    const Fixnum *n = static_cast<const Fixnum *>(car(args));
+    
+    long value = n->value_;
     while ((args = cdr(args)) != vm->NIL)
     {
-        if (value != car(args)->l) return vm->FALSE;
+        n = static_cast<const Fixnum *>(car(args));
+        if (value != n->value_) return vm->FALSE;
     }
     return vm->TRUE;
 }
 
 const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 {
-    long previous = car(args)->l;
+    const Fixnum *n = static_cast<const Fixnum *>(car(args));
+
+    long previous = n->value_;
     long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        next = car(args)->l;
+        n = static_cast<const Fixnum *>(car(args));
+        next = n->value_;
         if (previous < next)
         {
             previous = next;
@@ -457,11 +469,13 @@ const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::isGreaterThanProc(Kvm *vm, const Value *args)
 {
-    long previous = car(args)->l;
+    const Fixnum *n = static_cast<const Fixnum *>(car(args));
+    long previous = n->value_;
     long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        next = car(args)->l;
+        n =static_cast<const Fixnum *>(car(args));
+        next = n->value_;
         if (previous > next)
         {
             previous = next;
@@ -517,11 +531,23 @@ const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
     switch (obj1->type())
     {
         case ValueType::FIXNUM:
-            return obj1->l == obj2->l ? vm->TRUE : vm->FALSE;
+        {
+            const Fixnum *n1 = static_cast<const Fixnum *>(obj1);
+            const Fixnum *n2 = static_cast<const Fixnum *>(obj2);
+            return n1->value_ == n2->value_ ? vm->TRUE : vm->FALSE;
+        }
         case ValueType::CHARACTER:
-            return obj1->c == obj2->c ? vm->TRUE : vm->FALSE;
+        {
+            const Character *c1 = static_cast<const Character *>(obj1);
+            const Character *c2 = static_cast<const Character *>(obj2);
+            return c1->value_ == c2->value_ ? vm->TRUE : vm->FALSE;
+        }
         case ValueType::STRING:
-            return obj1->s == obj2->s ? vm->TRUE : vm->FALSE; // interned !
+        {
+            const String *s1 = static_cast<const String *>(obj1);
+            const String *s2 = static_cast<const String *>(obj2);
+            return s1->value_ == s2->value_ ? vm->TRUE : vm->FALSE;
+        }
         default:
             return obj1 == obj2 ? vm->TRUE : vm->FALSE;
     }
@@ -570,7 +596,8 @@ const Value* Kvm::evalEnvironment(const Value *arguments)
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::loadProc(Kvm *vm, const Value *args)
 {
-    auto filename = car(args)->s;
+    const String *s = static_cast<const String *>(car(args));
+    auto filename = s->value_;
 
     std::ifstream in(filename);
 
@@ -593,22 +620,22 @@ const Value* Kvm::loadProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::openInputPortProc(Kvm *vm, const Value *args)
 {
-    auto filename = car(args)->s;
-    std::ifstream *in = new std::ifstream(filename);
-    if (!*in)
+    const String *s = static_cast<const String *>(car(args));
+    auto filename = s->value_;
+    
+    std::unique_ptr<std::ifstream> in = std::make_unique<std::ifstream>(filename);
+    if (!in)
     {
         cerr << "could not open file \"" << filename << "\"" << endl;
         exit(-1);
     }
-    return vm->makeInputPort(in);
+    return vm->makeInputPort(std::move(in));
 }
 
 const Value* Kvm::closeInputPortProc(Kvm *vm, const Value *args)
 {
-    auto stream = car(args)->input;
-    delete stream;
-
-    const_cast<Value *>(args)->input = nullptr;
+    const InputPort *op = static_cast<const InputPort *>(car(args));
+    op->input->close();
     return vm->OK;
 }
 
@@ -619,20 +646,20 @@ const Value* Kvm::isInputPortProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::openOutputPortProc(Kvm *vm, const Value *args)
 {
-    auto filename = car(args)->s;
-    std::ofstream *out = new std::ofstream(filename);
-    if (!*out)
+    const String *s = static_cast<const String *>(car(args));
+    auto filename = s->value_;
+    std::unique_ptr<std::ofstream> out = std::make_unique<std::ofstream>(filename);
+    if (!out)
     {
         cerr << "could not open file \"" << filename << "\"" << endl;
     }
-    return vm->makeOutputPort(out);
+    return vm->makeOutputPort(std::move(out));
 }
 
 const Value* Kvm::closeOutputPortProc(Kvm *vm, const Value *args)
 {
-    auto stream = car(args)->output;
-    delete stream;
-    const_cast<Value *>(args)->output = nullptr;
+    const OutputPort *op = static_cast<const OutputPort *>(car(args));
+    op->output->close();
     return vm->OK;
 }
 
@@ -660,14 +687,17 @@ const Value* Kvm::errorProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::readProc(Kvm *vm, const Value *args)
 {
-    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+    const InputPort *ip = static_cast<const InputPort *>(args);
+    
+    std::istream &stream = args == vm->NIL ? std::cin : *ip->input;
     auto result = vm->read(stream);
     return result == nullptr ? vm->EOFOBJ : result;
 }
 
 const Value* Kvm::readCharProc(Kvm *vm, const Value *args)
 {
-    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+    const InputPort *ip = static_cast<const InputPort *>(args);
+    std::istream &stream = args == vm->NIL ? std::cin : *ip->input;
 
     char c;
     stream >> c;
@@ -676,17 +706,20 @@ const Value* Kvm::readCharProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::peekCharProc(Kvm *vm, const Value *args)
 {
-    std::istream &stream = args == vm->NIL ? std::cin : *car(args)->input;
+    const InputPort *ip = static_cast<const InputPort *>(args);
+    std::istream &stream = args == vm->NIL ? std::cin : *ip->input;
     auto result = stream.peek();
     return stream ? vm->makeChar(result) : vm->EOFOBJ;
 }
 
 const Value* Kvm::writeCharProc(Kvm *vm, const Value *args)
 {
-    auto character = car(args);
+    const Character *c = static_cast<const Character *>(car(args));
     args = cdr(args);
-    std::ostream &stream = args == vm->NIL ? cout : *car(args)->output;
-    stream << character->c;
+    
+    const OutputPort *op = static_cast<const OutputPort *>(car(args));
+    std::ostream &stream = args == vm->NIL ? cout : *op->output;
+    stream << c->value_;
     stream.flush();
     return vm->OK;
 }
@@ -696,7 +729,8 @@ const Value* Kvm::writeProc(Kvm *vm, const Value *args)
     auto v = car(args);
     args = cdr(args);
 
-    std::ostream &stream = args == vm->NIL ? std::cout : *car(args)->output;
+    const OutputPort *op = static_cast<const OutputPort *>(car(args));
+    std::ostream &stream = args == vm->NIL ? std::cout : *op->output;
     vm->print(v, stream);
     stream.flush();
     return vm->OK;
@@ -723,31 +757,31 @@ void Kvm::print(const Value *v, std::ostream& out)
     switch (v->type())
     {
         case ValueType::FIXNUM:
-            out << v->l;
+            out << static_cast<const Fixnum *>(v)->value_;
             break;
         case ValueType::BOOLEAN:
-            out << (v->b ? "#t" : "#f");
+            out << (static_cast<const Boolean *>(v)->value_ ? "#t" : "#f");
             break;
         case ValueType::CHARACTER:
             out << "#\\";
-            if (v->c == '\n')
+            if (static_cast<const Character *>(v)->value_ == '\n')
             {
                 out << "newline";
-            } else if (v->c == ' ')
+            } else if (static_cast<const Character *>(v)->value_ == ' ')
             {
                 out << "space";
-            } else if (v->c == '\t')
+            } else if (static_cast<const Character *>(v)->value_ == '\t')
             {
                 out << "tab";
             } else
             {
-                out << v->c;
+                out << static_cast<const Character *>(v)->value_;
             }
             break;
         case ValueType::STRING:
             out << "\"";
             {
-                const char *c = v->s;
+                const char *c = static_cast<const String *>(v)->value_;
                 while (*c)
                 {
                     switch (*c)
@@ -771,7 +805,7 @@ void Kvm::print(const Value *v, std::ostream& out)
             out << "\"";
             break;
         case ValueType::SYMBOL:
-            out << v->s;
+            out << static_cast<const Symbol *>(v)->value_;
             break;
         case ValueType::NIL:
             out << "()";
@@ -826,7 +860,7 @@ const Value* Kvm::lookupVariableValue(const Value *v, const Value *env)
         }
         cur_env = enclosingEnv(cur_env);
     }
-    cerr << "unbound variable, " << v->s << endl;
+    cerr << "unbound variable, " << static_cast<const String *>(v)->value_ << endl;
     exit(-1);
 }
 
@@ -919,7 +953,7 @@ void Kvm::setVariableValue(const Value *var, const Value *val, const Value *env)
         }
         env = enclosingEnv(env);
     }
-    cerr << "unbound variable, " << var->s << endl;
+    cerr << "unbound variable, " << static_cast<const String *>(var)->value_ << endl;
     exit(-1);
 }
 
@@ -1066,7 +1100,7 @@ tailcall: // wtf ?
         auto arguments = listOfValues(procOperands(v), env);
 
         // handle eval specially for tailcall requirements
-        if (isPrimitiveProc(procedure) && procedure->proc == evalProc)
+        if (isPrimitiveProc(procedure) && static_cast<const PrimitiveProc *>(procedure)->func_ == evalProc)
         {
             v = evalExpression(arguments);
             env = evalEnvironment(arguments);
@@ -1074,7 +1108,7 @@ tailcall: // wtf ?
         }
 
         // handle apply specially for tailcall requirement */
-        if (isPrimitiveProc(procedure) && procedure->proc == applyProc)
+        if (isPrimitiveProc(procedure) && static_cast<const PrimitiveProc *>(procedure)->func_ == applyProc)
         {
             procedure = applyOperator(arguments);
             arguments = applyOperands(arguments);
@@ -1082,15 +1116,17 @@ tailcall: // wtf ?
 
         if (isPrimitiveProc(procedure))
         {
-            return procedure->proc(this, arguments);
+            return static_cast<const PrimitiveProc *>(procedure)->func_(this, arguments);
         } else if (isCompoundProc(procedure))
         {
+            const CompoundProc *cp = static_cast<const CompoundProc *>(procedure);
+
             env = extendEnvironment(
-                    procedure->compound_proc.parameters,
+                    cp->parameters_,
                     arguments,
-                    procedure->compound_proc.env
-            );
-            v = makeBegin(procedure->compound_proc.body);
+                    cp->env_);
+
+            v = makeBegin(cp->body_);
             goto tailcall;
         } else
         {

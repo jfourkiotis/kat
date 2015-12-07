@@ -92,8 +92,8 @@ private:
     const Value* makeBegin(const Value *v);
     const Value* makeEofObject();
     const Value* makeIf(const Value *pred, const Value *conseq, const Value *alternate);
-    const Value* makeInputPort(std::ifstream *input);
-    const Value* makeOutputPort(std::ofstream *output);
+    const Value* makeInputPort(std::unique_ptr<std::ifstream> input);
+    const Value* makeOutputPort(std::unique_ptr<std::ofstream> output);
     bool isBegin(const Value *v);
     const Value* beginActions(const Value *v);
     // makeFixnum & makeChar will be removed. We do not
@@ -191,7 +191,7 @@ private:
     const Value* GLOBAL_ENV;
     
     void initialize();
-    void addEnvProc(Value *env, const char *schemeName, Value::PrimProc proc);
+    void addEnvProc(Value *env, const char *schemeName, const Value *(*proc)(Kvm *, const Value *));
     
     Kgc gc_;
 
