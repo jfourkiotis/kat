@@ -29,7 +29,8 @@ void Kgc::collect()
     auto numObjects = numObjects_;
     markAll();
     sweep();
-    maxObjects_ = numObjects_ * 2;
+    //maxObjects_ = numObjects_ * 2;
+    maxObjects_ = numObjects_;
 #ifndef NDEBUG
     printf("Collected %d objects, %d remaining.\n", numObjects - numObjects_, numObjects_);
 #endif
@@ -89,6 +90,9 @@ void Kgc::markAll()
 void Kgc::dealloc(const Value *v)
 {
     --numObjects_;
+#ifndef NDEBUG
+    printf("del> %p %d\n", v, v->type());
+#endif
     delete v;
 }
 
