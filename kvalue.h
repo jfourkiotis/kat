@@ -6,9 +6,10 @@
 #define KAT_KVALUE_H
 
 #include <iostream>
+#include <memory>
+#include <fstream>
+#include <functional>
 
-///////////////////////////////////////////////////////////////////////////////
-struct Nil {};
 ///////////////////////////////////////////////////////////////////////////////
 enum class ValueType
 {
@@ -35,47 +36,119 @@ class Kgc;
 class Value
 {
 public:
-    Value() : type_(ValueType::NIL), n(Nil()) {}
-    ~Value();
-
+    Value(ValueType type) : type_(type) {}
+    virtual ~Value() {}
 
     ValueType type() const { return type_; }
 
 private:
-    friend class Kvm;
-    friend class Kgc;
-
-    typedef const Value *(*PrimProc)(Kvm *vm, const Value *);
-
     ValueType type_;
     mutable unsigned int marked_ = 0;
     const Value* next_ = nullptr;
-
-    union
-    {
-        long l;
-        bool b;
-        char c;
-        const char *s;
-        Nil n;
-        const Value *cell[2];
-        PrimProc proc;
-        struct {
-            const Value *parameters;
-            const Value *body;
-            const Value *env;
-        } compound_proc;
-        std::ofstream *output;
-        std::ifstream *input;
-    };
-
-    friend const Value* car(const Value *v);
-    friend const Value* cdr(const Value *v);
-    friend void set_car(Value *v, const Value *obj);
-    friend void set_cdr(Value *v, const Value *obj);
-
+    
+    friend class Kvm;
+    friend class Kgc;
 };
 
+//---------------------------------------------------------------------------
+class CompoundProc final : public Value
+{
+public:
+    CompoundProc() : Value(ValueType::COMP_PROC) {}
+private:
+    const Value *parameters_ = nullptr;
+    const Value *body_ = nullptr;
+    const Value *env_ = nullptr;
+
+    friend class Kgc;
+    friend class Kvm;
+};
+
+//---------------------------------------------------------------------------
+class Cell final : public Value
+{
+public:
+    Cell() : Value(ValueType::CELL) {}
+private:
+    const Value *head_;
+    const Value *tail_;
+
+    friend class Kgc;
+    friend class Kvm;
+    friend const Value * car(const Value *);
+    friend const Value * cdr(const Value *);
+
+    friend void set_car(Value *v, const Value *obj);
+    friend void set_cdr(Value *v, const Value *obj);
+};
+
+//---------------------------------------------------------------------------
+class InputPort final : public Value
+{
+public:
+    InputPort() : Value(ValueType::INPUT_PORT) {}
+private:
+    std::unique_ptr<std::ifstream> input;
+    
+    friend class Kvm;
+};
+
+//---------------------------------------------------------------------------
+class OutputPort final : public Value
+{
+public:
+    OutputPort() : Value(ValueType::INPUT_PORT) {}
+private:
+    std::unique_ptr<std::ofstream> output;
+    
+    friend class Kvm;
+};
+
+//---------------------------------------------------------------------------
+class PrimitiveProc final : public Value
+{
+public:
+    explicit PrimitiveProc()
+    : Value(ValueType::PRIM_PROC) {}
+private:
+    const Value *(*func_)(Kvm *, const Value *) = nullptr;
+    
+    friend class Kvm;
+};
+
+//---------------------------------------------------------------------------
+class Nil final : public Value
+{
+public:
+    Nil() : Value(ValueType::NIL) {}
+};
+
+//---------------------------------------------------------------------------
+class Eof final : public Value
+{
+public:
+    Eof() : Value(ValueType::EOF_OBJECT) {}
+};
+
+//---------------------------------------------------------------------------
+template<typename T, ValueType V>
+class PrimitiveValue final : public Value
+{
+public:
+    PrimitiveValue() : Value(V) {}
+private:
+    T value_;
+    
+    friend class Kvm;
+};
+
+using Fixnum    = PrimitiveValue<long, ValueType::FIXNUM>;
+using Character = PrimitiveValue<char, ValueType::CHARACTER>;
+using String    = PrimitiveValue<const char *, ValueType::STRING>;
+using Boolean   = PrimitiveValue<bool, ValueType::BOOLEAN>;
+using Symbol    = PrimitiveValue<const char *, ValueType::SYMBOL>;
+
+//---------------------------------------------------------------------------
 inline bool isBoolean(const Value *v)
 {
     return v->type() == ValueType::BOOLEAN;

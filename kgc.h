@@ -2,6 +2,7 @@
 #define KAT_GC_H_INCLUDED
 
 #include <vector>
+#include "kvalue.h"
 
 class Value;
 
@@ -19,13 +20,15 @@ public:
     void pushLocalStackRoot(const Value **v) { localStackRoots_.push_back(v); }
     void popLocalStackRoot() { localStackRoots_.pop_back(); }
     void collect();
-    Value* allocValue();
+
+    Value* allocValue(ValueType type);
     
 private:
     void mark(const Value *v);
     void sweep();
     void markAll();
     void dealloc(const Value *v);
+    Value* allocSpecial(ValueType type);
     
     
     unsigned int numObjects_;
