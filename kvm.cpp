@@ -1355,12 +1355,31 @@ const Value* Kvm::bindingParameter(const Value *binding)
 
 const Value* Kvm::bindingsArguments(const Value *bindings)
 {
-    return bindings == NIL ? NIL : makeCell(bindingArgument(car(bindings)), bindingsArguments(cdr(bindings)));
+    if (bindings == NIL) return NIL;
+
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+
+    result = bindingsArguments(cdr(bindings));
+    result = makeCell(bindingArgument(car(bindings)), result);
+
+    gc_.popLocalStackRoot();
+
+    return result;
 }
 
 const Value* Kvm::bindingsParameters(const Value *bindings)
 {
-    return bindings == NIL ? NIL : makeCell(bindingParameter(car(bindings)), bindingsParameters(cdr(bindings)));
+    if (bindings == NIL) return NIL;
+
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+
+    result = bindingsParameters(cdr(bindings));
+    result = makeCell(bindingParameter(car(bindings)), result);
+
+    gc_.popLocalStackRoot();
+    return result;
 }
 
 const Value* Kvm::letBindings(const Value *v)
@@ -1406,8 +1425,14 @@ const Value* Kvm::applyOperands(const Value *arguments)
  */
 const Value* Kvm::letToFuncApp(const Value *v)
 {
-    return makeFuncApplication(
-            makeLambda(letParameters(v), letBody(v)), letArguments(v));
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+
+    result = makeLambda(letParameters(v), letBody(v));
+    result = makeFuncApplication(result, letArguments(v));
+
+    gc_.popLocalStackRoot();
+    return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
