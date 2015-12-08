@@ -30,9 +30,9 @@ void Kgc::collect()
     markAll();
     sweep();
     maxObjects_ = std::max(numObjects_ * 2, (unsigned int)INITIAL_GC_THRESHOLD);
-//#ifndef NDEBUG
+#ifndef NDEBUG
     printf("Collected %u objects, %u remaining (max = %u)\n", numObjects - numObjects_, numObjects_, maxObjects);
-//#endif
+#endif
 }
 
 void Kgc::mark(const Value *v)
@@ -126,9 +126,6 @@ Value* Kgc::allocSpecial(ValueType type)
 void Kgc::dealloc(const Value *v)
 {
     --numObjects_;
-#ifndef NDEBUG
-    //printf("del> %p %d\n", v, v->type());
-#endif
     delete v;
 }
 
