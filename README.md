@@ -16,8 +16,75 @@ You can run kat by typing:
 
 	./kat
 
+and then you can type the well known Y-combinator to get yourself started :)
+
+    (define Y
+      (lambda (f)
+        ((lambda (x) (f (lambda (y) ((x x) y))))
+         (lambda (x) (f (lambda (y) ((x x) y)))))))
+
+    (define factorial
+      (Y (lambda (fact)
+           (lambda (n)
+             (if (= n 0)
+               1
+               (* n (fact (- n 1))))))))
+
+    (write (factorial 5))
+
 `kat` is a work in progress and under heavy construction. Since no error handling is implemented,
 the interpreter will crash on bad input. 
+
+The following functions are implemented:
+
+* `null?`
+* `boolean?`
+* `symbol?`
+* `integer?`
+* `char?`
+* `string?`
+* `pair?`
+* `procedure?`
+* `char->integer`
+* `integer->char`
+* `number->string`
+* `string->number`
+* `symbol->string`
+* `string->symbol`
+* `+`
+* `-`
+* `*`
+* `quotient`
+* `remainder`
+* `=`
+* `<`
+* `>`
+* `cons`
+* `car`
+* `cdr`
+* `set-car!`
+* `set-cdr!`
+* `list`
+* `eq?`
+* `apply`
+* `interaction-environment`
+* `null-environment`
+* `environment`
+* `eval`
+* `load`
+* `open-input-port`
+* `close-input-port`
+* `input-port?`
+* `open-output-port`
+* `close-output-port`
+* `output-port?`
+* `read`
+* `read-char`
+* `peek-char`
+* `write`
+* `write-char`
+* `eof-object?`
+* `error`
 
 ### changes
 
