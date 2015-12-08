@@ -12,10 +12,14 @@
       (iter (cdr a) (+ 1 count))))
   (iter items 0))
 
+(write 'length)
+
 (define (append list1 list2)
   (if (null? list1)
     list2
     (cons (car (list1) (append (cdr list1) list2)))))
+
+(write 'append)
 
 (define (reverse l)
   (define (iter in out)
@@ -24,11 +28,15 @@
       out))
   (iter l '()))
 
+(write 'reverse)
+
 (define (map proc items)
   (if (null? items)
     '()
     (cons (proc (car items))
           (map proc (cdr items)))))
+
+(write 'map)
 
 (define (for-each f l)
   (if (null? l)
@@ -37,8 +45,12 @@
       (f (car l))
       (for-each f (cdr l)))))
 
+(write 'for-each)
+
 (define (not x)
   (if x #f #t))
+
+(write 'not)
 
 'stlib-loaded
 

@@ -6,7 +6,7 @@
 
 class Value;
 
-#define INITIAL_GC_THRESHOLD 1
+#define INITIAL_GC_THRESHOLD 256
 
 class GcGuard;
 
