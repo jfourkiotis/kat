@@ -16,8 +16,11 @@ You can run kat by typing:
 
 	./kat
 
-`kat` is a work in progress and under heavy construction.
+`kat` is a work in progress and under heavy construction. Since no error handling is implemented,
+the interpreter will crash on bad input. 
 
 ### changes
 
-* v0.8.1. Refactored current functionality to different classes. No major changes.
+* v0.22   A mark & sweep garbage collector is now used for memory hadling
+* v0.21   Added stdlib.scm. This file contains more function definitions written in scheme.
+* v0.20   Some basic I/O functions added.
