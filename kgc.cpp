@@ -1,5 +1,6 @@
 #include "kgc.h"
 #include <cassert>
+#include <algorithm>
 
 Value* Kgc::allocValue(ValueType type)
 {
@@ -25,13 +26,13 @@ Kgc::~Kgc()
 void Kgc::collect()
 {
     auto numObjects = numObjects_;
+    auto maxObjects = maxObjects_;
     markAll();
     sweep();
-    //maxObjects_ = numObjects_ * 2;
-    maxObjects_ = numObjects_;
-#ifndef NDEBUG
-    printf("Collected %d objects, %d remaining.\n", numObjects - numObjects_, numObjects_);
-#endif
+    maxObjects_ = std::max(numObjects_ * 2, (unsigned int)INITIAL_GC_THRESHOLD);
+//#ifndef NDEBUG
+    printf("Collected %u objects, %u remaining (max = %u)\n", numObjects - numObjects_, numObjects_, maxObjects);
+//#endif
 }
 
 void Kgc::mark(const Value *v)
@@ -126,7 +127,7 @@ void Kgc::dealloc(const Value *v)
 {
     --numObjects_;
 #ifndef NDEBUG
-    printf("del> %p %d\n", v, v->type());
+    //printf("del> %p %d\n", v, v->type());
 #endif
     delete v;
 }

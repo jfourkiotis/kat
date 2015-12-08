@@ -88,6 +88,7 @@ const Value* Kvm::makeString(const std::string& str)
         String *s = static_cast<String *>(gc_.allocValue(ValueType::STRING));
         auto r = interned_strings.insert({str, s});
         s->value_ = r.first->first.c_str();
+        gc_.pushStackRoot(s);
         return s;
     }
 }
@@ -95,7 +96,16 @@ const Value* Kvm::makeString(const std::string& str)
 ///////////////////////////////////////////////////////////////////////////////
 const Value* Kvm::makeIf(const Value *pred, const Value *conseq, const Value *alternate)
 {
-    return makeCell(IF, makeCell(pred, makeCell(conseq, makeCell(alternate, NIL))));
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+    
+    result = makeCell(alternate, NIL);
+    result = makeCell(conseq, result);
+    result = makeCell(pred, result);
+    result = makeCell(IF, result);
+    
+    gc_.popLocalStackRoot();
+    return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -163,6 +173,7 @@ const Value*Kvm::makeSymbol(const std::string &str)
         Symbol *s = static_cast<Symbol *>(gc_.allocValue(ValueType::SYMBOL));
         auto r = symbols.insert({str, s});
         s->value_ = r.first->first.c_str();
+        gc_.pushStackRoot(s);
         return s;
     }
 }
@@ -208,7 +219,14 @@ const Value* Kvm::makeCompoundProc(const Value* parameters, const Value* body, c
 
 const Value* Kvm::makeLambda(const Value* parameters, const Value* body)
 {
-    return makeCell(LAMBDA, makeCell(parameters, body));
+    const Value *result = nullptr;
+    gc_.pushLocalStackRoot(&result);
+    
+    result = makeCell(parameters, body);
+    result = makeCell(LAMBDA, result);
+    
+    gc_.popLocalStackRoot();
+    return result;
 }
 
 const Value* Kvm::makeEnvironment()
@@ -726,13 +744,19 @@ const Value* Kvm::writeCharProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::writeProc(Kvm *vm, const Value *args)
 {
-    auto v = car(args);
-    args = cdr(args);
-
-    const OutputPort *op = static_cast<const OutputPort *>(car(args));
-    std::ostream &stream = args == vm->NIL ? std::cout : *op->output;
-    vm->print(v, stream);
-    stream.flush();
+    auto head = car(args);
+    auto tail = cdr(args);
+    
+    if (tail == vm->NIL)
+    {
+        vm->print(head, std::cout);
+        std::cout.flush();
+    } else
+    {
+        const OutputPort *op = static_cast<const OutputPort *>(car(tail));
+        vm->print(head, *op->output);
+        op->output->flush();
+    }
     return vm->OK;
 }
 
@@ -1020,6 +1044,10 @@ const Value* Kvm::evalDefinition(const Value *v, const Value *env)
 
 const Value* Kvm::eval(const Value *v, const Value *env)
 {
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&v);
+    guard.pushLocalStackRoot(&env);
+    
 tailcall: // wtf ?
     if (isSelfEvaluating(v))
     {
@@ -1096,14 +1124,21 @@ tailcall: // wtf ?
         goto tailcall;
     } else if (isApplication(v))
     {
-        auto procedure = eval(procOperator(v), env);
-        auto arguments = listOfValues(procOperands(v), env);
+        const Value *procedure = nullptr;
+        const Value *arguments = nullptr;
+        gc_.pushLocalStackRoot(&procedure);
+        gc_.pushLocalStackRoot(&arguments);
+        
+        procedure = eval(procOperator(v), env);
+        arguments = listOfValues(procOperands(v), env);
 
         // handle eval specially for tailcall requirements
         if (isPrimitiveProc(procedure) && static_cast<const PrimitiveProc *>(procedure)->func_ == evalProc)
         {
             v = evalExpression(arguments);
             env = evalEnvironment(arguments);
+            gc_.popLocalStackRoot();
+            gc_.popLocalStackRoot();
             goto tailcall;
         }
 
@@ -1116,7 +1151,10 @@ tailcall: // wtf ?
 
         if (isPrimitiveProc(procedure))
         {
-            return static_cast<const PrimitiveProc *>(procedure)->func_(this, arguments);
+            auto result = static_cast<const PrimitiveProc *>(procedure)->func_(this, arguments);
+            gc_.popLocalStackRoot();
+            gc_.popLocalStackRoot();
+            return result;
         } else if (isCompoundProc(procedure))
         {
             const CompoundProc *cp = static_cast<const CompoundProc *>(procedure);
@@ -1127,6 +1165,8 @@ tailcall: // wtf ?
                     cp->env_);
 
             v = makeBegin(cp->body_);
+            gc_.popLocalStackRoot();
+            gc_.popLocalStackRoot();
             goto tailcall;
         } else
         {
@@ -1243,7 +1283,20 @@ const Value* Kvm::listOfValues(const Value *v, const Value *env)
     {
         return NIL;
     }
-    return makeCell(eval(car(v), env), listOfValues(cdr(v), env));
+    
+    const Value *result1 = nullptr;
+    const Value *result2 = nullptr;
+    
+    gc_.pushLocalStackRoot(&result1);
+    gc_.pushLocalStackRoot(&result2);
+    
+    result1 = eval(car(v), env);
+    result2 = listOfValues(cdr(v), env);
+    result1 = makeCell(result1, result2);
+    
+    gc_.popLocalStackRoot();
+    gc_.popLocalStackRoot();
+    return result1;
 }
 
 const Value* Kvm::ifPredicate(const Value *v)
@@ -1435,7 +1488,14 @@ const Value* Kvm::prepareApplyOperands(const Value *arguments)
         return car(arguments);
     } else
     {
-        return makeCell(car(arguments), prepareApplyOperands(cdr(arguments)));
+        const Value *result = nullptr;
+        gc_.pushLocalStackRoot(&result);
+        
+        result = prepareApplyOperands(cdr(arguments));
+        result = makeCell(car(arguments), result);
+        
+        gc_.popLocalStackRoot();
+        return result;
     }
 }
 
@@ -1461,14 +1521,19 @@ const Value* Kvm::applyOperands(const Value *arguments)
  */
 const Value* Kvm::letToFuncApp(const Value *v)
 {
-    const Value *result = nullptr;
-    gc_.pushLocalStackRoot(&result);
+    const Value *result1 = nullptr;
+    const Value *result2 = nullptr;
+    gc_.pushLocalStackRoot(&result1);
+    gc_.pushLocalStackRoot(&result2);
 
-    result = makeLambda(letParameters(v), letBody(v));
-    result = makeFuncApplication(result, letArguments(v));
+    result1 = letParameters(v);
+    result1 = makeLambda(result1, letBody(v));
+    result2 = letArguments(v);
+    result1 = makeFuncApplication(result1, result2);
 
     gc_.popLocalStackRoot();
-    return result;
+    gc_.popLocalStackRoot();
+    return result1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
