@@ -88,6 +88,8 @@ The following functions are implemented:
 
 ### changes
 
+* v0.23   A very simple object pooling strategy is implemented. The number of memory allocations
+          decreased dramatically.
 * v0.22   A mark & sweep garbage collector is now used for memory hadling
 * v0.21   Added stdlib.scm. This file contains more function definitions written in scheme.
 * v0.20   Some basic I/O functions added.
