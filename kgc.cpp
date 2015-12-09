@@ -1,6 +1,7 @@
 #include "kgc.h"
 #include <cassert>
 #include <algorithm>
+#include <deque>
 
 Value* Kgc::allocValue(ValueType type)
 {
@@ -13,14 +14,29 @@ Value* Kgc::allocValue(ValueType type)
     v->next_ = firstObject_;
     firstObject_ = v;
     ++numObjects_;
+    totalObjects_[(int)type]++;;
     return v;
 }
 
 Kgc::~Kgc()
 {
     assert(localStackRoots_.empty());
+#ifndef NDEBUG
+    printf("statistics:\n");
+    for (int i = 0; i != (int)ValueType::MAX; ++i)
+        printf("totalObjects[%d] = %d\n", i, totalObjects_[i]);
+    printf("reserved:\n");
+    for (int i = 0; i != (int)ValueType::MAX; ++i)
+        printf("%d => %lu\n", i, reserved[i].size());
+#endif
     stackRoots_.clear();
     collect();
+    for (auto &&vec : reserved)
+    {
+        for (auto v : vec)
+            delete v;
+        vec.clear();
+    }
 }
 
 void Kgc::collect()
@@ -91,6 +107,20 @@ void Kgc::markAll()
 
 Value* Kgc::allocSpecial(ValueType type)
 {
+    std::vector<Value *> &v = reserved[(int)type];
+    
+    if (!v.empty())
+    {
+        Value *last = v.back();
+        v.pop_back();
+        return last;
+    }
+    return allocNew(type);
+}
+
+
+Value* Kgc::allocNew(ValueType type)
+{
     switch (type)
     {
         case ValueType::COMP_PROC:
@@ -126,7 +156,7 @@ Value* Kgc::allocSpecial(ValueType type)
 void Kgc::dealloc(const Value *v)
 {
     --numObjects_;
-    delete v;
+    reserved[(int)v->type()].push_back(const_cast<Value *>(v));
 }
 
 

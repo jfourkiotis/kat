@@ -4,8 +4,6 @@
 #include <vector>
 #include "kvalue.h"
 
-class Value;
-
 #define INITIAL_GC_THRESHOLD 256
 
 class GcGuard;
@@ -31,11 +29,15 @@ private:
     void markAll();
     void dealloc(const Value *v);
     Value* allocSpecial(ValueType type);
+    Value* allocNew(ValueType type);
     
     
     unsigned int numObjects_;
     unsigned int maxObjects_;
     const Value* firstObject_ = nullptr;
+    unsigned int totalObjects_[(int)ValueType::MAX] = {0};
+    
+    std::vector<Value *> reserved[(int)ValueType::MAX];
     
     std::vector<const Value  *> stackRoots_;
     std::vector<const Value **> localStackRoots_;
