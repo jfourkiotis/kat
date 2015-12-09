@@ -1,6 +1,6 @@
 ## `kat`
 
-`kat` is a basic scheme interpreter written in `C++`. In order to build `kat` from sources, the
+`kat` is a basic **scheme** interpreter written in `C++`. In order to build `kat` from sources, the
 following are required:
 
 * cmake
@@ -16,7 +16,7 @@ You can run kat by typing:
 
 	./kat
 
-and then you can type the well known Y-combinator to get yourself started :)
+and then you can type the well known *Y-combinator* to get yourself started :)
 
     (define Y
       (lambda (f)
@@ -33,7 +33,7 @@ and then you can type the well known Y-combinator to get yourself started :)
     (write (factorial 5))
 
 `kat` is a work in progress and under heavy construction. Since no error handling is implemented,
-the interpreter will crash on bad input. 
+the interpreter will exit (or crash) on bad input. 
 
 The following functions are implemented:
 
