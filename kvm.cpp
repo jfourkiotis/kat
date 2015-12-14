@@ -8,6 +8,8 @@
 #include <string>
 #include <fstream>
 #include <cctype>
+#include <stdexcept>
+#include <limits>
 #include "kvm.h"
 #include "kvalue.h"
 
@@ -18,6 +20,11 @@ using std::string;
 
 namespace
 {
+    struct KatException : public std::runtime_error
+    {
+        explicit KatException(const std::string& what_error) : runtime_error(what_error) {}
+    };
+    
     bool isDelimiter(char c)
     {
         return isspace(c) || c == '(' || c == ')' || c == '"' || c == ';';
@@ -53,8 +60,11 @@ namespace
         {
             if (!(in >> c) || c != *str)
             {
-                cerr << "unexpected character '" << c << "'\n";
-                exit(-1);
+                std::string msg;
+                msg.append("unexpected character '");
+                msg.append(1, c);
+                msg.append("'");
+                throw KatException(msg);
             }
             ++str;
         }
@@ -64,8 +74,7 @@ namespace
     {
         if (!isDelimiter(in.peek())) // FIXME: peek returns int
         {
-            cerr << "character not followed by delimiter\n";
-            exit(-1);
+            throw KatException("character not followed by delimiter");
         }
     }
 }
@@ -621,8 +630,10 @@ const Value* Kvm::loadProc(Kvm *vm, const Value *args)
 
     if (!in)
     {
-        cerr << "could not load file \"" << filename << "\"" << endl;
-        exit(-1);
+        std::string msg("could not load file \"");
+        msg.append(filename);
+        msg.append("\"");
+        throw KatException(msg);
     }
 
     const Value *v = nullptr;
@@ -644,8 +655,11 @@ const Value* Kvm::openInputPortProc(Kvm *vm, const Value *args)
     std::unique_ptr<std::ifstream> in = std::make_unique<std::ifstream>(filename);
     if (!in)
     {
-        cerr << "could not open file \"" << filename << "\"" << endl;
-        exit(-1);
+        std::string msg;
+        msg.append("could not open file \"");
+        msg.append(filename);
+        msg.append("\"");
+        throw KatException(msg);
     }
     return vm->makeInputPort(std::move(in));
 }
@@ -669,7 +683,11 @@ const Value* Kvm::openOutputPortProc(Kvm *vm, const Value *args)
     std::unique_ptr<std::ofstream> out = std::make_unique<std::ofstream>(filename);
     if (!out)
     {
-        cerr << "could not open file \"" << filename << "\"" << endl;
+        std::string msg;
+        msg.append("could not open file \"");
+        msg.append(filename);
+        msg.append("\"");
+        throw KatException(msg);
     }
     return vm->makeOutputPort(std::move(out));
 }
@@ -884,8 +902,10 @@ const Value* Kvm::lookupVariableValue(const Value *v, const Value *env)
         }
         cur_env = enclosingEnv(cur_env);
     }
-    cerr << "unbound variable, " << static_cast<const String *>(v)->value_ << endl;
-    exit(-1);
+    std::string msg;
+    msg.append("unbound variable ");
+    msg.append(static_cast<const String *>(v)->value_);
+    throw KatException(msg);
 }
 
 const Value* Kvm::frameVariables(const Value *frame)
@@ -977,8 +997,11 @@ void Kvm::setVariableValue(const Value *var, const Value *val, const Value *env)
         }
         env = enclosingEnv(env);
     }
-    cerr << "unbound variable, " << static_cast<const String *>(var)->value_ << endl;
-    exit(-1);
+    std::string msg;
+    msg.append("unbound variable ");
+    msg.append(static_cast<const String *>(var)->value_);
+    
+    throw KatException(msg);
 }
 
 const Value * Kvm::defineVariable(const Value *var, const Value *val, const Value *env)
@@ -1170,13 +1193,11 @@ tailcall: // wtf ?
             goto tailcall;
         } else
         {
-            cerr << "unknown procedure type" << endl;
-            exit(-1);
+            throw KatException("unknown procedure type");
         }
     } else
     {
-        cerr << "cannot evaluate unknown expression type" << endl;
-        exit(-1);
+        throw KatException("cannot evaluate unknown expression type");
     }
 }
 
@@ -1369,8 +1390,7 @@ const Value* Kvm::expandClauses(const Value *clauses)
                  return sequence(condActions(first));
             } else
             {
-                cerr << "else clause isn't last" << endl;
-                exit(-1);
+                throw KatException("else clause isn't last");
             }
         } else
         {
@@ -1601,8 +1621,7 @@ const Value* Kvm::read(std::istream &in)
             return readCharacter(in);
         else
         {
-            cerr << "unknown boolean literal" << endl;
-            std::exit(-1);
+            throw KatException("unknown boolean literal");
         }
     } else if ((isdigit(c) && in.putback(c)) ||
                (c == '-' && isdigit(in.peek()) && (sign = -1)))
@@ -1619,8 +1638,7 @@ const Value* Kvm::read(std::istream &in)
             return makeFixnum(num);
         } else
         {
-            cerr << "number not followed by delimiter" << endl;
-            std::exit(-1);
+            throw KatException("number not followed by delimiter");
         }
     } else if (c == '"')
     {
@@ -1634,8 +1652,7 @@ const Value* Kvm::read(std::istream &in)
                     if (c == 'n') c = '\n';
                 } else
                 {
-                    cerr << "non-terminated string literal\n";
-                    exit(-1);
+                    throw KatException("non-terminated string literal");
                 }
             }
             buffer.append(1, c);
@@ -1675,11 +1692,13 @@ const Value* Kvm::read(std::istream &in)
         return result;
     } else
     {
-        cerr << "bad input. Unexpected '" << c << "'" << endl;
-        std::exit(-1);
+        std::string msg;
+        msg.append("bad input. unexpected '");
+        msg.append(1, c);
+        msg.append("'");
+        throw KatException(msg);
     }
-    cerr << "illegal read state" << endl;
-    std::exit(-1);
+    throw KatException("illegal read state");
 }
 
 const Value* Kvm::readPair(std::istream &in)
@@ -1704,16 +1723,14 @@ const Value* Kvm::readPair(std::istream &in)
         c = in.peek(); // FIXME: peek returns int
         if (!isDelimiter(c))
         {
-            cerr << "dot not followed by delimiter\n";
-            exit(-1);
+            throw KatException("dot not followed by delimiter");
         }
         cdr_obj = read(in);
         eatWhitespace(in);
         in >> c;
         if (c != ')')
         {
-            cerr << "where was the trailing right paren?\n";
-            exit(-1);
+            throw KatException("where was the trailing paren?");
         }
         auto result = makeCell(car_obj, cdr_obj);
         gc_.popLocalStackRoot();
@@ -1735,8 +1752,7 @@ const Value* Kvm::readCharacter(std::istream &in)
     char c;
     if (!(in >> c))
     {
-        cerr << "incomplete character literal\n";
-        exit(-1);
+        throw KatException("incomplete character literal");
     } else if (c == 's')
     {
         if (in.peek() == 'p')
@@ -1832,14 +1848,21 @@ int Kvm::repl(std::istream &in, std::ostream &out)
 {
     while (true)
     {
-        out << ">>> ";
-        auto v = read(in);
-        if (!v)
+        try
         {
-            break;
+            out << "kat> ";
+            auto v = read(in);
+            if (!v)
+            {
+                break;
+            }
+            print(eval(v, GLOBAL_ENV), out);
+            out << endl;
+        } catch (KatException &e)
+        {
+            out << e.what() << endl;
+            in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
-        print(eval(v, GLOBAL_ENV), out);
-        out << endl;
     }
     out << "Goodbye" << endl;
     return 0;
