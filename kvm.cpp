@@ -1119,12 +1119,12 @@ tailcall: // wtf ?
         v = orTests(v);
         if (v == NIL)
         {
-            return NIL;
+            return FALSE;
         }
         while (cdr(v) != NIL)
         {
             auto result = eval(car(v), env);
-            if (result == TRUE)
+            if (result != FALSE)
             {
                 return result;
             }
