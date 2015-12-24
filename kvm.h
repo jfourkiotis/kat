@@ -160,6 +160,7 @@ private:
 
     static const Value* isEofObjectProc(Kvm *vm, const Value *args);
     static const Value* errorProc(Kvm *vm, const Value *args);
+    static const Value* currentTimeMillisProc(Kvm *vm, const Value *args);
 
     static const Value* readProc(Kvm *vm, const Value *args);
     static const Value* readCharProc(Kvm *vm, const Value *args);

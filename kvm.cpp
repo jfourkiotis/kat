@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cctype>
 #include <stdexcept>
+#include <chrono>
 #include <limits>
 #include "kvm.h"
 #include "kvalue.h"
@@ -321,6 +322,9 @@ void Kvm::populateEnvironment(Value *env)
 
     addEnvProc(env, "eof-object?", isEofObjectProc);
     addEnvProc(env, "error", errorProc);
+
+    // utilities
+    addEnvProc(env, "current-time-millis", currentTimeMillisProc);
 }
 
 const Value* Kvm::isNullP(Kvm *vm, const Value *args)
@@ -719,6 +723,12 @@ const Value* Kvm::errorProc(Kvm *vm, const Value *args)
     }
     cerr << "\nexiting...\n";
     exit(-1);
+}
+
+const Value* Kvm::currentTimeMillisProc(Kvm *vm, const Value *args)
+{
+    using namespace std::chrono;
+    return vm->makeFixnum(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
 const Value* Kvm::readProc(Kvm *vm, const Value *args)
