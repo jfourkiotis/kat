@@ -1159,8 +1159,9 @@ tailcall: // wtf ?
     {
         const Value *procedure = nullptr;
         const Value *arguments = nullptr;
-        gc_.pushLocalStackRoot(&procedure);
-        gc_.pushLocalStackRoot(&arguments);
+        GcGuard appGuard{gc_};
+        appGuard.pushLocalStackRoot(&procedure);
+        appGuard.pushLocalStackRoot(&arguments);
         
         procedure = eval(procOperator(v), env);
         arguments = listOfValues(procOperands(v), env);
@@ -1170,8 +1171,6 @@ tailcall: // wtf ?
         {
             v = evalExpression(arguments);
             env = evalEnvironment(arguments);
-            gc_.popLocalStackRoot();
-            gc_.popLocalStackRoot();
             goto tailcall;
         }
 
@@ -1185,8 +1184,6 @@ tailcall: // wtf ?
         if (isPrimitiveProc(procedure))
         {
             auto result = static_cast<const PrimitiveProc *>(procedure)->func_(this, arguments);
-            gc_.popLocalStackRoot();
-            gc_.popLocalStackRoot();
             return result;
         } else if (isCompoundProc(procedure))
         {
@@ -1198,8 +1195,6 @@ tailcall: // wtf ?
                     cp->env_);
 
             v = makeBegin(cp->body_);
-            gc_.popLocalStackRoot();
-            gc_.popLocalStackRoot();
             goto tailcall;
         } else
         {
@@ -1406,15 +1401,13 @@ const Value* Kvm::expandClauses(const Value *clauses)
         {
             const Value *result1 = nullptr;
             const Value *result2 = nullptr;
-            gc_.pushLocalStackRoot(&result1);
-            gc_.pushLocalStackRoot(&result2);
+            GcGuard guard{gc_};
+            guard.pushLocalStackRoot(&result1);
+            guard.pushLocalStackRoot(&result2);
 
             result1 = sequence(condActions(first));
             result2 = expandClauses(rest);
             result1 = makeIf(condPredicate(first), result1, result2);
-
-            gc_.popLocalStackRoot();
-            gc_.popLocalStackRoot();
             return result1;
         }
     }
@@ -1722,8 +1715,9 @@ const Value* Kvm::readPair(std::istream &in)
 
     const Value *car_obj = nullptr;
     const Value *cdr_obj = nullptr;
-    gc_.pushLocalStackRoot(&car_obj);
-    gc_.pushLocalStackRoot(&cdr_obj);
+    GcGuard readGuard{gc_};
+    readGuard.pushLocalStackRoot(&car_obj);
+    readGuard.pushLocalStackRoot(&cdr_obj);
 
     car_obj = read(in);
     eatWhitespace(in);
@@ -1743,16 +1737,12 @@ const Value* Kvm::readPair(std::istream &in)
             throw KatException("where was the trailing paren?");
         }
         auto result = makeCell(car_obj, cdr_obj);
-        gc_.popLocalStackRoot();
-        gc_.popLocalStackRoot();
         return result;
     } else /* read list */
     {
         in.putback(c);
         cdr_obj = readPair(in);
         auto result = makeCell(car_obj, cdr_obj);
-        gc_.popLocalStackRoot();
-        gc_.popLocalStackRoot();
         return result;
     }
 }
