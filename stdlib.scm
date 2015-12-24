@@ -52,5 +52,17 @@
 
 (write 'not)
 
+(define (time action)
+  (let ((start (current-time-millis))
+        (tmp   (eval action (interaction-environment)))
+        (end   (current-time-millis)))
+    (- end start)))
+
+(define (fib n)
+  (if (or (= n 1) (= n 2))
+    1
+    (+ (fib (- n 1)) (fib (- n 2)))))
+
+
 'stlib-loaded
 
