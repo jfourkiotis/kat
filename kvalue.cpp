@@ -10,31 +10,6 @@
 using std::string;
 using std::unordered_map;
 
-///////////////////////////////////////////////////////////////////////////////
-const Value* car(const Value *v)
-{
-    assert(v->type() == ValueType::CELL);
-    const Cell *c = static_cast<const Cell *>(v);
-    return c->head_;
-}
-///////////////////////////////////////////////////////////////////////////////
-const Value* cdr(const Value *v)
-{
-    assert(v->type() == ValueType::CELL);
-    const Cell *c = static_cast<const Cell *>(v);
-    return c->tail_;
-}
-
-const Value* cadr(const Value *v)
-{
-    return car(cdr(v));
-}
-
-const Value* cddr(const Value *v)
-{
-    return cdr(cdr(v));
-}
-
 const Value* caddr(const Value *v)
 {
     return cadr(cdr(v));
