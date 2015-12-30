@@ -191,17 +191,13 @@ const Value*Kvm::makeSymbol(const std::string &str)
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeFixnum(long num)
 {
-    Fixnum *f = static_cast<Fixnum *>(gc_.allocValue(ValueType::FIXNUM));
-    f->value_ = num;
-    return f;
+    return reinterpret_cast<Value *>(MK_INT(num));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 const Value *Kvm::makeChar(char c)
 {
-    Character *v = static_cast<Character *>(gc_.allocValue(ValueType::CHARACTER));
-    v->value_ = c;
-    return v;
+    return reinterpret_cast<Value *>(MK_CHR(c));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -371,20 +367,19 @@ const Value* Kvm::isProcedureP(Kvm *vm, const Value *args)
 
 const Value* Kvm::charToInteger(Kvm *vm, const Value *args)
 {
-    const Character *v = static_cast<const Character *>(car(args));
-    return vm->makeFixnum(v->value_);
+    return vm->makeFixnum(TK_CHR(car(args)));
 }
 
 const Value* Kvm::integerToChar(Kvm *vm, const Value *args)
 {
-    const Fixnum *n = static_cast<const Fixnum *>(car(args));
-    return vm->makeChar(n->value_);
+    long n = TK_INT(car(args));
+    return vm->makeChar(n);
 }
 
 const Value* Kvm::numberToString(Kvm *vm, const Value *args)
 {
-    const Fixnum *n = static_cast<const Fixnum *>(car(args));
-    return vm->makeString(std::to_string(n->value_));
+    long n = TK_INT(car(args));
+    return vm->makeString(std::to_string(n));
 }
 
 const Value* Kvm::stringToNumber(Kvm *vm, const Value *args)
@@ -409,11 +404,9 @@ const Value* Kvm::addProc(Kvm *vm, const Value *args)
 {
     long result {0};
     
-    const Fixnum *num = nullptr;
     while (args != vm->NIL)
     {
-        num = static_cast<const Fixnum *>(car(args));
-        result += num->value_;
+        result += TK_INT(car(args));
         args = cdr(args);
     }
     return vm->makeFixnum(result);
@@ -422,13 +415,11 @@ const Value* Kvm::addProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::subProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *num = static_cast<const Fixnum *>(car(args));
-    long result = num->value_;
+    long result = TK_INT(car(args));
     
     while ((args = cdr(args)) != vm->NIL)
     {
-        num = static_cast<const Fixnum *>(car(args));
-        result -= num->value_;
+        result -= TK_INT(car(args));
     }
     
     return vm->makeFixnum(result);
@@ -438,11 +429,9 @@ const Value* Kvm::mulProc(Kvm *vm, const Value *args)
 {
     long result = 1;
     
-    const Fixnum *num = nullptr;
     while (args != vm->NIL)
     {
-        num = static_cast<const Fixnum *>(car(args));
-        result *= num->value_;
+        result *= TK_INT(car(args));
         args = cdr(args);
     }
     
@@ -452,41 +441,31 @@ const Value* Kvm::mulProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::quotientProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *n1 = static_cast<const Fixnum *>(car(args));
-    const Fixnum *n2 = static_cast<const Fixnum *>(cadr(args));
-    return vm->makeFixnum(n1->value_ / n2->value_);
+    return vm->makeFixnum(TK_INT(car(args)) / TK_INT(cadr(args)));
 }
 
 const Value* Kvm::remainderProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *n1 = static_cast<const Fixnum *>(car(args));
-    const Fixnum *n2 = static_cast<const Fixnum *>(cadr(args));
-    return vm->makeFixnum(n1->value_ % n2->value_);
+    return vm->makeFixnum(TK_INT(car(args)) % TK_INT(cadr(args)));
 }
 
 const Value* Kvm::isNumberEqualProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *n = static_cast<const Fixnum *>(car(args));
-    
-    long value = n->value_;
+    long value = TK_INT(car(args));
     while ((args = cdr(args)) != vm->NIL)
     {
-        n = static_cast<const Fixnum *>(car(args));
-        if (value != n->value_) return vm->FALSE;
+        if (value != TK_INT(car(args))) return vm->FALSE;
     }
     return vm->TRUE;
 }
 
 const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *n = static_cast<const Fixnum *>(car(args));
-
-    long previous = n->value_;
+    long previous = TK_INT(car(args));
     long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        n = static_cast<const Fixnum *>(car(args));
-        next = n->value_;
+        next = TK_INT(car(args));
         if (previous < next)
         {
             previous = next;
@@ -500,13 +479,11 @@ const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::isGreaterThanProc(Kvm *vm, const Value *args)
 {
-    const Fixnum *n = static_cast<const Fixnum *>(car(args));
-    long previous = n->value_;
+    long previous = TK_INT(car(args));
     long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        n =static_cast<const Fixnum *>(car(args));
-        next = n->value_;
+        next = TK_INT(car(args));
         if (previous > next)
         {
             previous = next;
@@ -555,24 +532,20 @@ const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
     auto obj1 = car(args);
     auto obj2 = cadr(args);
 
+    if (IS_INT(obj1) && IS_INT(obj2))
+    {
+        return TK_INT(obj1) == TK_INT(obj2) ? vm->TRUE : vm->FALSE;
+    } else if (IS_CHR(obj1) && IS_CHR(obj2))
+    {
+        return TK_CHR(obj1) == TK_CHR(obj2) ? vm->TRUE : vm->FALSE;
+    }
+
     if (obj1->type() != obj2->type())
     {
         return vm->FALSE;
     }
     switch (obj1->type())
     {
-        case ValueType::FIXNUM:
-        {
-            const Fixnum *n1 = static_cast<const Fixnum *>(obj1);
-            const Fixnum *n2 = static_cast<const Fixnum *>(obj2);
-            return n1->value_ == n2->value_ ? vm->TRUE : vm->FALSE;
-        }
-        case ValueType::CHARACTER:
-        {
-            const Character *c1 = static_cast<const Character *>(obj1);
-            const Character *c2 = static_cast<const Character *>(obj2);
-            return c1->value_ == c2->value_ ? vm->TRUE : vm->FALSE;
-        }
         case ValueType::STRING:
         {
             const String *s1 = static_cast<const String *>(obj1);
@@ -760,12 +733,11 @@ const Value* Kvm::peekCharProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::writeCharProc(Kvm *vm, const Value *args)
 {
-    const Character *c = static_cast<const Character *>(car(args));
+    auto c = TK_CHR(car(args));
     args = cdr(args);
     
-    const OutputPort *op = static_cast<const OutputPort *>(car(args));
-    std::ostream &stream = args == vm->NIL ? cout : *op->output;
-    stream << c->value_;
+    std::ostream &stream = args == vm->NIL ? cout : *static_cast<const OutputPort *>(car(args))->output;
+    stream << c;
     stream.flush();
     return vm->OK;
 }
@@ -806,85 +778,90 @@ void Kvm::printCell(const Value *v, std::ostream &out)
 ///////////////////////////////////////////////////////////////////////////////
 void Kvm::print(const Value *v, std::ostream& out)
 {
-    switch (v->type())
+    if (IS_INT(v))
     {
-        case ValueType::FIXNUM:
-            out << static_cast<const Fixnum *>(v)->value_;
-            break;
-        case ValueType::BOOLEAN:
-            out << (static_cast<const Boolean *>(v)->value_ ? "#t" : "#f");
-            break;
-        case ValueType::CHARACTER:
-            out << "#\\";
-            if (static_cast<const Character *>(v)->value_ == '\n')
-            {
-                out << "newline";
-            } else if (static_cast<const Character *>(v)->value_ == ' ')
-            {
-                out << "space";
-            } else if (static_cast<const Character *>(v)->value_ == '\t')
-            {
-                out << "tab";
-            } else
-            {
-                out << static_cast<const Character *>(v)->value_;
-            }
-            break;
-        case ValueType::STRING:
-            out << "\"";
-            {
-                const char *c = static_cast<const String *>(v)->value_;
-                while (*c)
+        out << TK_INT(v);
+    } else if (IS_CHR(v))
+    {
+        char c = TK_CHR(v);
+        out << "#\\";
+        if (c == '\n')
+        {
+            out << "newline";
+        } else if (c == ' ')
+        {
+            out << "space";
+        } else if (c == '\t')
+        {
+            out << "tab";
+        } else
+        {
+            out << c;
+        }
+    }
+    else
+    {
+        switch (v->type())
+        {
+            case ValueType::BOOLEAN:
+                out << (static_cast<const Boolean *>(v)->value_ ? "#t" : "#f");
+                break;
+            case ValueType::STRING:
+                out << "\"";
                 {
-                    switch (*c)
+                    const char *c = static_cast<const String *>(v)->value_;
+                    while (*c)
                     {
-                        case '\n':
-                            out << "\\n";
-                            break;
-                        case '\\':
-                            out << "\\\\";
-                            break;
-                        case '"':
-                            out << "\\\"";
-                            break;
-                        default:
-                            out << *c;
-                            break;
+                        switch (*c)
+                        {
+                            case '\n':
+                                out << "\\n";
+                                break;
+                            case '\\':
+                                out << "\\\\";
+                                break;
+                            case '"':
+                                out << "\\\"";
+                                break;
+                            default:
+                                out << *c;
+                                break;
+                        }
+                        ++c;
                     }
-                    ++c;
                 }
-            }
-            out << "\"";
-            break;
-        case ValueType::SYMBOL:
-            out << static_cast<const Symbol *>(v)->value_;
-            break;
-        case ValueType::NIL:
-            out << "()";
-            break;
-        case ValueType::CELL:
-            out << "(";
-            printCell(v, out);
-            out << ")";
-            break;
-        case ValueType::PRIM_PROC:
-            out << "#<primitive-procedure";
-            break;
-        case ValueType::COMP_PROC:
-            out << "#<compound-procedure>";
-            break;
-        case ValueType::INPUT_PORT:
-            out << "#<input-port>";
-            break;
-        case ValueType::OUTPUT_PORT:
-            out << "#<output-port>";
-            break;
-        case ValueType::EOF_OBJECT:
-            out << "#<eof>";
-            break;
-        default:
-            cerr << "cannot write unknown type" << endl;
-            break;
+                out << "\"";
+                break;
+            case ValueType::SYMBOL:
+                out << static_cast<const Symbol *>(v)->value_;
+                break;
+            case ValueType::NIL:
+                out << "()";
+                break;
+            case ValueType::CELL:
+                out << "(";
+                printCell(v, out);
+                out << ")";
+                break;
+            case ValueType::PRIM_PROC:
+                out << "#<primitive-procedure";
+                break;
+            case ValueType::COMP_PROC:
+                out << "#<compound-procedure>";
+                break;
+            case ValueType::INPUT_PORT:
+                out << "#<input-port>";
+                break;
+            case ValueType::OUTPUT_PORT:
+                out << "#<output-port>";
+                break;
+            case ValueType::EOF_OBJECT:
+                out << "#<eof>";
+                break;
+            default:
+                cerr << "cannot write unknown type" << endl;
+                break;
+        }
     }
 }
 
@@ -1230,7 +1207,7 @@ bool Kvm::isTagged(const Value *v, const Value *tag)
 
 bool Kvm::isSelfEvaluating(const Value *v)
 {
-    return isBoolean(v) || isFixnum(v) || isCharacter(v) || isString(v);
+    return isFixnum(v) || isCharacter(v) || isBoolean(v) || isString(v);
 }
 
 bool Kvm::isVariable(const Value *v)
