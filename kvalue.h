@@ -9,13 +9,26 @@
 #include <memory>
 #include <fstream>
 #include <functional>
+#include <cstdint>
+
+#define TAG_MASK 0b111
+#define PTR_MASK ~TAG_MASK
+
+#define INT_MASK 0b001
+#define CHR_MASK 0b010
+
+#define IS_INT(v) ((reinterpret_cast<intptr_t>(v)) & INT_MASK) == INT_MASK
+#define MK_INT(n) (((n) << 1) | 1)
+#define TK_INT(v) ((reinterpret_cast<intptr_t>(v)) >> 1)
+
+#define IS_CHR(v) ((reinterpret_cast<intptr_t>(v)) & CHR_MASK) == CHR_MASK
+#define MK_CHR(c) (((c) << CHR_MASK) | CHR_MASK)
+#define TK_CHR(v) static_cast<char>(((reinterpret_cast<intptr_t>(v)) >> CHR_MASK))
 
 ///////////////////////////////////////////////////////////////////////////////
 enum class ValueType
 {
-    FIXNUM,
     BOOLEAN,
-    CHARACTER,
     STRING,
     NIL,
     CELL,
@@ -142,8 +155,6 @@ private:
     friend class Kvm;
 };
 
-using Fixnum    = PrimitiveValue<long, ValueType::FIXNUM>;
-using Character = PrimitiveValue<char, ValueType::CHARACTER>;
 using String    = PrimitiveValue<const char *, ValueType::STRING>;
 using Boolean   = PrimitiveValue<bool, ValueType::BOOLEAN>;
 using Symbol    = PrimitiveValue<const char *, ValueType::SYMBOL>;
@@ -156,12 +167,12 @@ inline bool isBoolean(const Value *v)
 
 inline bool isFixnum(const Value *v)
 {
-    return v->type() == ValueType::FIXNUM;
+    return IS_INT(v);
 }
 
 inline bool isCharacter(const Value *v)
 {
-    return v->type() == ValueType::CHARACTER;
+    return IS_CHR(v);
 }
 
 inline bool isString(const Value *v)
@@ -204,10 +215,26 @@ inline bool isEof(const Value *v)
     return v->type() == ValueType::EOF_OBJECT;
 }
 
-const Value* car(const Value *v);
-const Value* cdr(const Value *v);
-const Value* cadr(const Value *v);
-const Value* cddr(const Value *v);
+inline const Value* car(const Value *v)
+{
+    return static_cast<const Cell *>(v)->head_;
+}
+
+inline const Value* cdr(const Value *v)
+{
+    return static_cast<const Cell *>(v)->tail_;
+}
+
+inline const Value* cadr(const Value *v)
+{
+    return car(cdr(v));
+}
+
+inline const Value* cddr(const Value *v)
+{
+    return cdr(cdr(v));
+}
+
 const Value* caddr(const Value *v);
 const Value* cdadr(const Value *v);
 const Value* cadddr(const Value *v);

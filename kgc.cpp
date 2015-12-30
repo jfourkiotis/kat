@@ -53,6 +53,7 @@ void Kgc::collect()
 
 void Kgc::mark(const Value *v)
 {
+    if (IS_INT(v)) return;
     if (v->marked_) return;
     
     v->marked_ = 1;
@@ -135,14 +136,10 @@ Value* Kgc::allocNew(ValueType type)
             return new PrimitiveProc;
         case ValueType::BOOLEAN:
             return new Boolean;
-        case ValueType::FIXNUM:
-            return new Fixnum;
         case ValueType::STRING:
             return new String;
         case ValueType::SYMBOL:
             return new Symbol;
-        case ValueType::CHARACTER:
-            return new Character;
         case ValueType::NIL:
             return new Nil;
         case ValueType::EOF_OBJECT:
