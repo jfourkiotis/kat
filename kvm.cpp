@@ -107,14 +107,12 @@ const Value* Kvm::makeString(const std::string& str)
 const Value* Kvm::makeIf(const Value *pred, const Value *conseq, const Value *alternate)
 {
     const Value *result = nullptr;
-    gc_.pushLocalStackRoot(&result);
-    
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result);
     result = makeCell(alternate, NIL);
     result = makeCell(conseq, result);
     result = makeCell(pred, result);
     result = makeCell(IF, result);
-    
-    gc_.popLocalStackRoot();
     return result;
 }
 
@@ -251,15 +249,12 @@ void Kvm::addEnvProc(Value *env, const char *schemeName, const Value * (*proc)(K
 {
     const Value *result1 = nullptr;
     const Value *result2 = nullptr;
-    gc_.pushLocalStackRoot(&result1);
-    gc_.pushLocalStackRoot(&result2);
-    
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result1);
+    guard.pushLocalStackRoot(&result2);
     result2 = makeProc(proc);
     result1 = makeSymbol(schemeName);
     defineVariable(result1, result2, env);
-    
-    gc_.popLocalStackRoot();
-    gc_.popLocalStackRoot();
 }
 
 void Kvm::populateEnvironment(Value *env)
@@ -1042,13 +1037,11 @@ const Value* Kvm::definitionValue(const Value *v)
 const Value* Kvm::evalDefinition(const Value *v, const Value *env)
 {
     const Value *result = nullptr;
-    gc_.pushLocalStackRoot(&result);
-
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result);
     result = definitionValue(v);
     result = eval(result, env);
     defineVariable(definitionVariable(v), result, env);
-
-    gc_.popLocalStackRoot();
     return OK;
 }
 
@@ -1290,15 +1283,14 @@ const Value* Kvm::listOfValues(const Value *v, const Value *env)
     const Value *result1 = nullptr;
     const Value *result2 = nullptr;
     
-    gc_.pushLocalStackRoot(&result1);
-    gc_.pushLocalStackRoot(&result2);
+    GcGuard guard{gc_};
     
+    guard.pushLocalStackRoot(&result1);
+    guard.pushLocalStackRoot(&result2);
+
     result1 = eval(car(v), env);
     result2 = listOfValues(cdr(v), env);
     result1 = makeCell(result1, result2);
-    
-    gc_.popLocalStackRoot();
-    gc_.popLocalStackRoot();
     return result1;
 }
 
@@ -1447,13 +1439,10 @@ const Value* Kvm::bindingsArguments(const Value *bindings)
     if (bindings == NIL) return NIL;
 
     const Value *result = nullptr;
-    gc_.pushLocalStackRoot(&result);
-
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result);
     result = bindingsArguments(cdr(bindings));
     result = makeCell(bindingArgument(car(bindings)), result);
-
-    gc_.popLocalStackRoot();
-
     return result;
 }
 
@@ -1462,12 +1451,10 @@ const Value* Kvm::bindingsParameters(const Value *bindings)
     if (bindings == NIL) return NIL;
 
     const Value *result = nullptr;
-    gc_.pushLocalStackRoot(&result);
-
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result);
     result = bindingsParameters(cdr(bindings));
     result = makeCell(bindingParameter(car(bindings)), result);
-
-    gc_.popLocalStackRoot();
     return result;
 }
 
@@ -1489,12 +1476,10 @@ const Value* Kvm::prepareApplyOperands(const Value *arguments)
     } else
     {
         const Value *result = nullptr;
-        gc_.pushLocalStackRoot(&result);
-        
+        GcGuard guard{gc_};
+        guard.pushLocalStackRoot(&result);
         result = prepareApplyOperands(cdr(arguments));
         result = makeCell(car(arguments), result);
-        
-        gc_.popLocalStackRoot();
         return result;
     }
 }
@@ -1523,16 +1508,14 @@ const Value* Kvm::letToFuncApp(const Value *v)
 {
     const Value *result1 = nullptr;
     const Value *result2 = nullptr;
-    gc_.pushLocalStackRoot(&result1);
-    gc_.pushLocalStackRoot(&result2);
-
+    
+    GcGuard guard{gc_};
+    guard.pushLocalStackRoot(&result1);
+    guard.pushLocalStackRoot(&result2);
     result1 = letParameters(v);
     result1 = makeLambda(result1, letBody(v));
     result2 = letArguments(v);
     result1 = makeFuncApplication(result1, result2);
-
-    gc_.popLocalStackRoot();
-    gc_.popLocalStackRoot();
     return result1;
 }
 
@@ -1662,13 +1645,11 @@ const Value* Kvm::read(std::istream &in)
     } else if (c == '\'')
     {
         const Value *result = nullptr;
-        gc_.pushLocalStackRoot(&result);
-
+        GcGuard guard{gc_};
+        guard.pushLocalStackRoot(&result);
         result = read(in);
         result = makeCell(result, NIL);
         result = makeCell(QUOTE, result);
-
-        gc_.popLocalStackRoot();
         return result;
     } else
     {
