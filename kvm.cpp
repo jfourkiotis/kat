@@ -1069,7 +1069,7 @@ tailcall: // wtf ?
         return evalDefinition(v, env);
     } else if (isIf(v))
     {
-        v = eval(ifPredicate(v), env) == TRUE ? ifConsequent(v) : ifAlternative(v);
+        v = eval(ifPredicate(v), env) != FALSE ? ifConsequent(v) : ifAlternative(v);
         goto tailcall;
     } else if (isCond(v))
     {
