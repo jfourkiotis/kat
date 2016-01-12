@@ -53,7 +53,7 @@ void Kgc::collect()
 
 void Kgc::mark(const Value *v)
 {
-    if (IS_INT(v)) return;
+    if (IS_INT(v) || IS_CHR(v)) return;
     if (v->marked_) return;
     
     v->marked_ = 1;
