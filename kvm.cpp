@@ -1648,6 +1648,7 @@ const Value* Kvm::read(std::istream &in)
         GcGuard guard{gc_};
         guard.pushLocalStackRoot(&result);
         result = read(in);
+        if (!result) return nullptr;
         result = makeCell(result, NIL);
         result = makeCell(QUOTE, result);
         return result;
@@ -1678,6 +1679,7 @@ const Value* Kvm::readPair(std::istream &in)
     readGuard.pushLocalStackRoot(&cdr_obj);
 
     car_obj = read(in);
+    if (!car_obj) return nullptr;
     eatWhitespace(in);
     in >> c;
     if (c == '.')  /* improper list */
@@ -1688,6 +1690,7 @@ const Value* Kvm::readPair(std::istream &in)
             throw KatException("dot not followed by delimiter");
         }
         cdr_obj = read(in);
+        if (!cdr_obj) return nullptr;
         eatWhitespace(in);
         in >> c;
         if (c != ')')
