@@ -177,41 +177,49 @@ inline bool isCharacter(const Value *v)
 
 inline bool isString(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::STRING;
 }
 
 inline bool isCell(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::CELL;
 }
 
 inline bool isSymbol(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::SYMBOL;
 }
 
 inline bool isPrimitiveProc(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::PRIM_PROC;
 }
 
 inline bool isCompoundProc(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::COMP_PROC;
 }
 
 inline bool isInputPort(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::INPUT_PORT;
 }
 
 inline bool isOutputPort(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::OUTPUT_PORT;
 }
 
 inline bool isEof(const Value *v)
 {
+    if (isFixnum(v) || isCharacter(v)) return false;
     return v->type() == ValueType::EOF_OBJECT;
 }
 
