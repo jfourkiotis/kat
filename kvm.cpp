@@ -533,6 +533,11 @@ const Value* Kvm::isEqProc(Kvm *vm, const Value *args)
     } else if (IS_CHR(obj1) && IS_CHR(obj2))
     {
         return TK_CHR(obj1) == TK_CHR(obj2) ? vm->TRUE : vm->FALSE;
+    } else if (IS_INT(obj1) || IS_INT(obj2))
+    {
+        return vm->FALSE;
+    } else if (IS_CHR(obj1) || IS_CHR(obj2)) {
+        return vm->FALSE;
     }
 
     if (obj1->type() != obj2->type())
@@ -1815,9 +1820,16 @@ int Kvm::repl(std::istream &in, std::ostream &out)
             auto v = read(in);
             if (!v)
             {
+                printf("Fatal error -- READ!\n");
                 break;
             }
-            print(eval(v, GLOBAL_ENV), out);
+            auto r = eval(v, GLOBAL_ENV);
+            if (!r)
+            {
+                printf("Fatal error -- EVAL!\n");
+                break;
+            }
+            print(r, out);
             out << endl;
         } catch (KatException &e)
         {
