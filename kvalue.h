@@ -17,11 +17,11 @@
 #define INT_MASK 0b001
 #define CHR_MASK 0b010
 
-#define IS_INT(v) ((reinterpret_cast<intptr_t>(v)) & INT_MASK) == INT_MASK
+#define IS_INT(v) (((reinterpret_cast<intptr_t>(v)) & INT_MASK) == INT_MASK)
 #define MK_INT(n) (((n) << 1) | 1)
 #define TK_INT(v) ((reinterpret_cast<intptr_t>(v)) >> 1)
 
-#define IS_CHR(v) ((reinterpret_cast<intptr_t>(v)) & CHR_MASK) == CHR_MASK
+#define IS_CHR(v) (((reinterpret_cast<intptr_t>(v)) & CHR_MASK) == CHR_MASK)
 #define MK_CHR(c) (((c) << CHR_MASK) | CHR_MASK)
 #define TK_CHR(v) static_cast<char>(((reinterpret_cast<intptr_t>(v)) >> CHR_MASK))
 

@@ -542,7 +542,7 @@ const Value* Kvm::setCarProc(Kvm *vm, const Value *args)
 
 const Value* Kvm::setCdrProc(Kvm *vm, const Value *args)
 {
-    set_cdr(const_cast<Value *>(cdr(args)), cadr(args));
+    set_cdr(const_cast<Value *>(car(args)), cadr(args));
     return vm->OK;
 }
 
@@ -806,7 +806,7 @@ const Value* Kvm::writeProc(Kvm *vm, const Value *args)
 void Kvm::printCell(const Value *v, std::ostream &out)
 {
     print(car(v), out);
-    if (cdr(v)->type() == ValueType::CELL)
+    if (!IS_INT(cdr(v)) && !IS_CHR(cdr(v)) && (cdr(v)->type() == ValueType::CELL))
     {
         out << " ";
         printCell(cdr(v), out);
