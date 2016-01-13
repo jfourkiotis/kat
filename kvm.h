@@ -112,6 +112,8 @@ private:
     const Value* evalEnvironment(const Value *arguments);
     void populateEnvironment(Value *env);
 
+    void displayValue(const Value *v, std::ostream &out);
+
     static const Value* isNullP(Kvm *vm, const Value *args);
     static const Value* isBoolP(Kvm *vm, const Value *args);
     static const Value* isSymbolP(Kvm *vm, const Value *args);
@@ -167,6 +169,7 @@ private:
     static const Value* peekCharProc(Kvm *vm, const Value *args);
     static const Value* writeCharProc(Kvm *vm, const Value *args);
     static const Value* writeProc(Kvm *vm, const Value *args);
+    static const Value* displayProc(Kvm *vm, const Value *args);
 
 
     std::unordered_map<std::string, const Value *> interned_strings;

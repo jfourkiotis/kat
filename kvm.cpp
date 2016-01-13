@@ -310,12 +310,41 @@ void Kvm::populateEnvironment(Value *env)
     addEnvProc(env, "peek-char", peekCharProc);
     addEnvProc(env, "write", writeProc);
     addEnvProc(env, "write-char", writeCharProc);
+    addEnvProc(env, "display", displayProc);
 
     addEnvProc(env, "eof-object?", isEofObjectProc);
     addEnvProc(env, "error", errorProc);
 
     // utilities
     addEnvProc(env, "current-time-millis", currentTimeMillisProc);
+}
+
+void Kvm::displayValue(const Value *v, std::ostream &out)
+{
+    if (IS_INT(v))
+    {
+        out << TK_INT(v);
+    } else if (IS_CHR(v))
+    {
+        out << TK_CHR(v);
+    } else 
+    {
+        switch (v->type())
+        {
+            case ValueType::BOOLEAN:
+                out << (static_cast<const Boolean *>(v)->value_ ? "#t" : "#f");
+                break;
+            case ValueType::STRING:
+                out << (static_cast<const String *>(v)->value_);
+                break;
+            case ValueType::SYMBOL:
+                out << (static_cast<const String *>(v)->value_);
+                break;
+            default:
+                out << "`display` primitive is not implemented for this object";
+                break;
+        }
+    }
 }
 
 const Value* Kvm::isNullP(Kvm *vm, const Value *args)
@@ -738,6 +767,18 @@ const Value* Kvm::writeCharProc(Kvm *vm, const Value *args)
     
     std::ostream &stream = args == vm->NIL ? cout : *static_cast<const OutputPort *>(car(args))->output;
     stream << c;
+    stream.flush();
+    return vm->OK;
+}
+
+const Value* Kvm::displayProc(Kvm *vm, const Value *args)
+{
+    auto v = car(args);
+    args = cdr(args);
+    std::ostream &stream = args == vm->NIL ? cout : *static_cast<const OutputPort *>(car(args))->output;
+
+    vm->displayValue(v, stream); 
+
     stream.flush();
     return vm->OK;
 }
