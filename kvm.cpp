@@ -649,6 +649,7 @@ const Value* Kvm::loadProc(Kvm *vm, const Value *args)
     while ((v = vm->read(in)) && in)
     {
         result = vm->eval(v, vm->GLOBAL_ENV);
+        if (!result) return nullptr;
     }
     return result;
 }
@@ -1054,7 +1055,9 @@ const Value * Kvm::defineVariable(const Value *var, const Value *val, const Valu
 
 const Value* Kvm::evalAssignment(const Value *v, const Value *env)
 {
-    setVariableValue(assignmentVariable(v), eval(assignmentValue(v), env), env);
+    auto e = eval(assignmentValue(v), env);
+    if (!e) return nullptr;
+    setVariableValue(assignmentVariable(v), e, env);
     return OK;
 }
 
@@ -1087,6 +1090,7 @@ const Value* Kvm::evalDefinition(const Value *v, const Value *env)
     guard.pushLocalStackRoot(&result);
     result = definitionValue(v);
     result = eval(result, env);
+    if (!result) return nullptr;
     defineVariable(definitionVariable(v), result, env);
     return OK;
 }
@@ -1116,6 +1120,7 @@ tailcall: // wtf ?
     } else if (isIf(v))
     {
         v = eval(ifPredicate(v), env) != FALSE ? ifConsequent(v) : ifAlternative(v);
+        if (!v) return nullptr;
         goto tailcall;
     } else if (isCond(v))
     {
@@ -1132,7 +1137,8 @@ tailcall: // wtf ?
         while (cdr(v) != NIL)
         {
             auto result = eval(car(v), env);
-            if (result == FALSE)
+            if (!result) return nullptr;
+            else if (result == FALSE)
             {
                 return result;
             }
@@ -1150,7 +1156,8 @@ tailcall: // wtf ?
         while (cdr(v) != NIL)
         {
             auto result = eval(car(v), env);
-            if (result != FALSE)
+            if (!result) return nullptr;
+            else if (result != FALSE)
             {
                 return result;
             }
@@ -1166,7 +1173,7 @@ tailcall: // wtf ?
         v = beginActions(v);
         while (cdr(v) != NIL)
         {
-            eval(car(v), env);
+            if (!eval(car(v), env)) return nullptr;
             v = cdr(v);
         }
         v = car(v);
@@ -1180,6 +1187,7 @@ tailcall: // wtf ?
         appGuard.pushLocalStackRoot(&arguments);
         
         procedure = eval(procOperator(v), env);
+        if (!procedure) return nullptr;
         arguments = listOfValues(procOperands(v), env);
 
         // handle eval specially for tailcall requirements
@@ -1335,6 +1343,7 @@ const Value* Kvm::listOfValues(const Value *v, const Value *env)
     guard.pushLocalStackRoot(&result2);
 
     result1 = eval(car(v), env);
+    if (!result1) return nullptr;
     result2 = listOfValues(cdr(v), env);
     result1 = makeCell(result1, result2);
     return result1;
