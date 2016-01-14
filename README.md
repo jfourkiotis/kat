@@ -85,9 +85,11 @@ The following functions are implemented:
 * `write-char`
 * `eof-object?`
 * `error`
+* `display`
 
 ### changes
 
+* v0.26   Added the `display` primitive procedure.
 * v0.23   A very simple object pooling strategy is implemented. The number of memory allocations
           decreased dramatically.
 * v0.22   A mark & sweep garbage collector is now used for memory hadling
