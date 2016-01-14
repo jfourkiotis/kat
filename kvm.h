@@ -113,6 +113,7 @@ private:
     void populateEnvironment(Value *env);
 
     void displayValue(const Value *v, std::ostream &out);
+    void displayCell(const Value *v, std::ostream &out);
 
     static const Value* isNullP(Kvm *vm, const Value *args);
     static const Value* isBoolP(Kvm *vm, const Value *args);

@@ -319,6 +319,20 @@ void Kvm::populateEnvironment(Value *env)
     addEnvProc(env, "current-time-millis", currentTimeMillisProc);
 }
 
+void Kvm::displayCell(const Value *v, std::ostream &out)
+{
+    displayValue(car(v), out);
+    if (isCell(cdr(v)))
+    {
+        out << ' ';
+        displayCell(cdr(v), out);
+    } else if (cdr(v) != NIL)
+    {
+        out << " . ";
+        displayValue(cdr(v), out);
+    }
+}
+
 void Kvm::displayValue(const Value *v, std::ostream &out)
 {
     if (IS_INT(v))
@@ -339,6 +353,11 @@ void Kvm::displayValue(const Value *v, std::ostream &out)
                 break;
             case ValueType::SYMBOL:
                 out << (static_cast<const String *>(v)->value_);
+                break;
+            case ValueType::CELL:
+                out << '(';
+                displayCell(v, out);
+                out << ')';
                 break;
             default:
                 out << "`display` primitive is not implemented for this object";
@@ -806,7 +825,7 @@ const Value* Kvm::writeProc(Kvm *vm, const Value *args)
 void Kvm::printCell(const Value *v, std::ostream &out)
 {
     print(car(v), out);
-    if (!IS_INT(cdr(v)) && !IS_CHR(cdr(v)) && (cdr(v)->type() == ValueType::CELL))
+    if (isCell(cdr(v)))
     {
         out << " ";
         printCell(cdr(v), out);
