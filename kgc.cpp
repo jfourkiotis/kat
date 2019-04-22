@@ -27,7 +27,7 @@ Kgc::~Kgc()
         printf("totalObjects[%d] = %d\n", i, totalObjects_[i]);
     printf("reserved:\n");
     for (int i = 0; i != (int)ValueType::MAX; ++i)
-        printf("%d => %lu\n", i, reserved[i].size());
+        printf("%d => %zu\n", i, reserved[i].size());
 #endif
     stackRoots_.clear();
     collect();
