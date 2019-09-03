@@ -24,7 +24,7 @@ Kgc::~Kgc()
 #ifndef NDEBUG
     printf("statistics:\n");
     for (int i = 0; i != (int)ValueType::MAX; ++i)
-        printf("totalObjects[%d] = %d\n", i, totalObjects_[i]);
+        printf("totalObjects[%d] = %u\n", i, totalObjects_[i]);
     printf("reserved:\n");
     for (int i = 0; i != (int)ValueType::MAX; ++i)
         printf("%d => %zu\n", i, reserved[i].size());

@@ -49,7 +49,7 @@ class Kgc;
 class Value
 {
 public:
-    Value(ValueType type) : type_(type) {}
+    explicit Value(ValueType type) : type_(type) {}
     virtual ~Value() {}
 
     ValueType type() const { return type_; }
@@ -83,8 +83,8 @@ class Cell final : public Value
 public:
     Cell() : Value(ValueType::CELL) {}
 private:
-    const Value *head_;
-    const Value *tail_;
+    const Value *head_ = nullptr;
+    const Value *tail_ = nullptr;
 
     friend class Kgc;
     friend class Kvm;
@@ -150,7 +150,7 @@ class PrimitiveValue final : public Value
 public:
     PrimitiveValue() : Value(V) {}
 private:
-    T value_;
+    T value_{};
     
     friend class Kvm;
 };

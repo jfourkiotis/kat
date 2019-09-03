@@ -505,10 +505,9 @@ const Value* Kvm::isNumberEqualProc(Kvm *vm, const Value *args)
 const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 {
     long previous = TK_INT(car(args));
-    long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        next = TK_INT(car(args));
+        long next = TK_INT(car(args));
         if (previous < next)
         {
             previous = next;
@@ -523,10 +522,9 @@ const Value* Kvm::isLessThanProc(Kvm *vm, const Value *args)
 const Value* Kvm::isGreaterThanProc(Kvm *vm, const Value *args)
 {
     long previous = TK_INT(car(args));
-    long next = 0;
     while ((args = cdr(args)) != vm->NIL)
     {
-        next = TK_INT(car(args));
+        long next = TK_INT(car(args));
         if (previous > next)
         {
             previous = next;
